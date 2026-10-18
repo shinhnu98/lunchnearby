@@ -65,11 +65,11 @@ const fd=d=>d<1000?Math.round(d)+'m':(d/1000).toFixed(1)+'km';
 const loc=()=>new Promise((ok,no)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>ok(p.coords),no,{enableHighAccuracy:true,timeout:10000,maximumAge:60000}):no(new Error('geo')));
 
 /* ---------- data sources ---------- */
-async function gPlaces(la,lo){
-  let t=S.inc.flatMap(c=>GT[c]||[]);if(!t.length)t=['restaurant'];
+async function gPlaces(la,lo,fb){
+  let t=fb?[]:S.inc.flatMap(c=>GT[c]||[]);if(!t.length)t=['restaurant'];
   const r=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':S.key,'X-Goog-FieldMask':'places.id,places.displayName,places.types,places.rating,places.userRatingCount,places.currentOpeningHours,places.regularOpeningHours,places.reviews,places.location,places.shortFormattedAddress'},
     body:JSON.stringify({includedTypes:t,maxResultCount:20,rankPreference:'DISTANCE',languageCode:S.lang,locationRestriction:{circle:{center:{latitude:la,longitude:lo},radius:Math.min(S.radius,50000)}}})});
-  if(!r.ok)throw new Error('Google '+r.status);
+  if(!r.ok){if(r.status==400&&!fb&&S.inc.length)return gPlaces(la,lo,1);let m='';try{m=(await r.json()).error.message}catch{}throw new Error('Google '+r.status+(m?': '+m:''))}
   const di=(new Date().getDay()+6)%7;
   return((await r.json()).places||[]).map(p=>({id:'g:'+p.id,name:p.displayName?.text,cu:cuO((p.types||[]).join(' ')),tx:(p.displayName?.text||'')+' '+(p.types||[]).join(' '),la:p.location.latitude,lo:p.location.longitude,rt:p.rating,n:p.userRatingCount,open:p.currentOpeningHours?.openNow,hrs:p.regularOpeningHours?.weekdayDescriptions?.[di],rv:(p.reviews||[]).slice(0,2).map(v=>({a:v.authorAttribution?.displayName,r:v.rating,t:v.text?.text||v.originalText?.text})),addr:p.shortFormattedAddress,g:1}));
 }
@@ -175,7 +175,7 @@ function render(){
   hist:`<div class="card">${histHTML()}</div>`,
   set:`<div class="card"><b>🔑 Google Places API</b> <span class="tag">${S.key?'✅ '+L('연결됨','Connected'):L('미연결','Not connected')}</span>
   <ol class="mut" style="padding-left:18px"><li>${L('Google Cloud 콘솔에서 프로젝트 생성 + 결제 계정 연결','Create a Google Cloud project and link billing')}</li><li>${L('“Places API (New)” 사용 설정','Enable “Places API (New)”')}</li><li>${L('API 키 생성 → 애플리케이션 제한: 웹사이트(HTTP 리퍼러)에 내 사이트 주소 등록, API 제한: Places API (New)','Create an API key → restrict by HTTP referrer (your site URL) and to Places API (New)')}</li><li>${L('아래에 키 붙여넣기','Paste the key below')}</li></ol>
-  <input type="password" value="${esc(S.key)}" placeholder="AIza…" onchange="S.key=this.value.trim();save();render()"></div>
+  <input type="password" value="${esc(S.key)}" placeholder="AIza…" onchange="S.key=this.value.replace(/["'\s]/g,'');save();render()"></div>
   <div class="card"><b>⭐ ${L('내 맛집 (가산점)','My favorites (bonus)')}</b>${listHTML(F,'favT')}</div>
   <div class="card"><b>🚫 ${L('제외 목록','Excluded')}</b>${listHTML(B,'blkT')}</div>`}[S.tab];
   $('#app').innerHTML=`<header style="display:flex;justify-content:space-between;align-items:center"><h1>🎲 ${L('점심 룰렛','Lunch Roulette')}</h1><button onclick="S.lang=S.lang=='ko'?'en':'ko';save();render()">${S.lang=='ko'?'EN':'한국어'}</button></header><main>${tab}</main>

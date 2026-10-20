@@ -145,6 +145,14 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .cnt{flex:none;text-align:center;min-width:52px;background:var(--soft);border-radius:12px;padding:6px 8px}.cnt b{display:block;font-size:20px;color:var(--ac);line-height:1.1}.cnt span{font-size:11px;color:var(--mut)}
 .st3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.st3 div{background:var(--soft);border-radius:12px;padding:10px 6px;text-align:center}.st3 b{display:block;font-size:18px}.st3 span{font-size:12px;color:var(--mut)}
 .myrv{background:var(--soft);border-radius:12px;padding:12px;margin:8px 0;font-size:14px}.myrv .d{font-weight:700;font-size:13px}
+.car{position:relative;background:var(--soft)}
+.cs{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}.cs::-webkit-scrollbar{display:none}
+.cp{flex:0 0 100%;scroll-snap-align:start;scroll-snap-stop:always;position:relative;height:220px}.cp img{width:100%;height:100%;object-fit:cover;display:block}.cp.bad{display:none}
+.pa{position:absolute;left:8px;bottom:8px;font-size:10px;color:#fff;background:#0008;border-radius:6px;padding:1px 6px;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bdg{position:absolute;left:10px;top:10px;display:flex;gap:5px;z-index:2;pointer-events:none}.bdg span{background:#fffffff0;border-radius:99px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 2px 6px #0003}
+.dots{position:absolute;left:0;right:0;bottom:10px;display:flex;justify-content:center;gap:5px;pointer-events:none}.dots i{width:6px;height:6px;border-radius:50%;background:#ffffff80;transition:background .2s,transform .2s}.dots i.on{background:#fff;transform:scale(1.25)}
+.pc{position:absolute;right:10px;top:10px;font-size:12px;color:#fff;background:#0008;border-radius:99px;padding:2px 9px;pointer-events:none}
+.ibdg{font-size:16px;margin-left:8px;vertical-align:3px}
 </style></head><body><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -305,7 +313,7 @@ function gMap(p){const ty=(p.types||[]).join(' '),nm=p.displayName?.text||'',co=
     rt:p.rating,n:p.userRatingCount,open:co.openNow,nx:{o:co.nextOpenTime,c:co.nextCloseTime},wk,today:wk?.[di]?.replace(/^[^:]*:\s*/,''),
     rv:(p.reviews||[]).map(v=>({a:v.authorAttribution?.displayName,r:v.rating,t:v.text?.text||v.originalText?.text||'',w:v.relativePublishTimeDescription})),
     rs:p.reviewSummary?.text?.text?{t:p.reviewSummary.text.text,d:p.reviewSummary.disclosureText?.text}:null,
-    addr:p.shortFormattedAddress,ph:p.photos?.[0]?.name,pr:p.priceLevel,tel:p.nationalPhoneNumber,web:p.websiteUri,uri:p.googleMapsUri,sum:p.editorialSummary?.text,
+    addr:p.shortFormattedAddress,ph:p.photos?.[0]?.name,phs:(p.photos||[]).slice(0,10).map(x=>({n:x.name,a:x.authorAttributions?.[0]?.displayName})),pr:p.priceLevel,tel:p.nationalPhoneNumber,web:p.websiteUri,uri:p.googleMapsUri,sum:p.editorialSummary?.text,
     at:AT.filter(a=>p[a[0]]===true).map(a=>a[0]),ff:(p.types||[]).includes('fast_food_restaurant'),g:1}}
 async function gDetails(lite){const c=dcache.get(lite.pid);if(c&&Date.now()-c.t<18e5)return{...c.v,d:lite.d};
   const r=await tFetch(`https://places.googleapis.com/v1/places/${lite.pid}?languageCode=${S.lang}`,{headers:gH(FMD)},12000,new AbortController());
@@ -445,7 +453,10 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
   const pr=[PL[p.pr]?'$'.repeat(PL[p.pr]):'',p.prg?.startPrice?money(p.prg.startPrice)+(p.prg.endPrice?'–'+money(p.prg.endPrice):'+'):''].filter(Boolean).join(' ');
   const rvs=p.rv||[],shown=rvMore?rvs:rvs.slice(0,2),long=rvs.length>2||rvs.some(v=>v.t.length>200);
   const hl=highlights(rvs);
-  const img=p.ph&&S.key?`<img class="ph" src="https://places.googleapis.com/v1/${p.ph}/media?maxWidthPx=900&key=${encodeURIComponent(S.key)}" alt="" loading="lazy" onerror="this.remove()">`:'';
+  const phs=S.key?(p.phs||(p.ph?[{n:p.ph}]:[])):[],fav=!!F[p.id],rvd=mine.length>0;
+  const badges=fav||rvd?`<div class="bdg">${fav?`<span title="${L('찜한 곳','Favorite')}">⭐</span>`:''}${rvd?`<span title="${L('리뷰 남긴 곳','Reviewed')}">📝</span>`:''}</div>`:'';
+  const img=phs.length?`<div class="car"><div class="cs" onscroll="carDot(this)">${phs.map((x,i)=>`<div class="cp"><img src="https://places.googleapis.com/v1/${x.n}/media?maxWidthPx=900&key=${encodeURIComponent(S.key)}" alt="" loading="${i?'lazy':'eager'}" onerror="this.parentNode.classList.add('bad')">${x.a?`<span class="pa">${esc(x.a)}</span>`:''}</div>`).join('')}</div>${badges}
+    ${phs.length>1?`<div class="dots">${phs.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div><div class="pc">1 / ${phs.length}</div>`:''}</div>`:'';
   const sub=[cuName(p.cu)+(p.ff?L(' · 간편식',' · Quick bite'):''),pr,fd(p.d)].filter(Boolean).join(' · ');
   const rating=p.rt?`★ ${p.rt} <span class="mut">(${(p.n||0).toLocaleString()})</span>`:mr?`★ ${mr.toFixed(1)} <span class="mut">${L('내 평가','your rating')}</span>`:'';
   const lead=L(`반경 ${fd(S.radius)} 안 음식점 ${last.total}곳${last.more?' 이상':''} 중에서 무작위로 뽑았어요`,`Randomly picked from ${last.total}${last.more?'+':''} restaurants within ${fd(S.radius)}`)+(p.rt?`<br>★ ${p.rt} · ${L('리뷰','reviews')} ${(p.n||0).toLocaleString()}${L('개','')}`:'');
@@ -456,22 +467,23 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
     p.sum&&!p.rs?`<p class="mut">${esc(p.sum)}</p>`:'',
     why.length?`<ul class="why">${why.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''].join('');
   $('#res').innerHTML=`<div class="card rc">${img}<div class="rb">
-  <h2 class="nm">${esc(p.name)}</h2><div class="sub">${esc(sub)}${rating?' · '+rating:''}</div>${p.addr?`<div class="sub">${esc(p.addr)}</div>`:''}
+  <h2 class="nm">${esc(p.name)}${!phs.length&&(fav||rvd)?`<span class="ibdg">${fav?'⭐':''}${rvd?'📝':''}</span>`:''}</h2><div class="sub">${esc(sub)}${rating?' · '+rating:''}</div>${p.addr?`<div class="sub">${esc(p.addr)}</div>`:''}
   <div class="info">
     <div><span class="k">${L('지금','Right now')}</span><span class="v ${st.c}">${esc(st.t)}</span></div>
     <div><span class="k">${L('오늘 영업시간','Today’s hours')}</span><span class="v">${esc(p.today||L('정보 없음','Not available'))}</span>
       ${p.wk||p.hrs?`<br><button class="link" onclick="wkMore=!wkMore;showRes()">${wkMore?L('접기','Hide'):L('요일별 영업시간 보기','See weekly hours')}</button>${wkMore?weekHTML(p):''}`:''}</div>
     ${cr?`<div><span class="k">${L('혼잡도','How busy')}</span><span class="v">${CL()[cr.lv]}</span><span class="k">${esc(cr.src)}${p.uri?` · <a href="${esc(p.uri)}" target="_blank" rel="noopener">${L('실시간은 Google 지도에서','Live data on Google Maps')}</a>`:''}</span></div>`:''}
   </div>
+  ${mine.length?`<h4>${L('내 리뷰','My reviews')} · ${L(`${mine.length}번`,`${mine.length}`)}</h4>`+myRvHTML(mine,0):''}
   <h4>${L('추천 이유','Why this pick')}</h4>${reasons||`<p class="mut">${L('이 근처에서 무작위로 골랐어요.','Picked at random from nearby options.')}</p>`}
   ${rvs.length?`<h4>${L('Google 리뷰','Google reviews')}</h4>`+shown.map(v=>`<div class="rv"><span class="st">${'★'.repeat(Math.round(v.r||0))}</span> <b>${esc(v.a)}</b> <span class="m">${esc(v.w||'')}</span><div>${esc(rvMore||v.t.length<=200?v.t:v.t.slice(0,200)+'…')}</div></div>`).join('')
     +(long?`<button class="link" onclick="rvMore=!rvMore;showRes()">${rvMore?L('리뷰 접기','Show less'):L(`리뷰 ${rvs.length}개 전체 보기`,`Show all ${rvs.length} reviews`)}</button>`:''):''}
-  ${mine.length?`<h4>${L('내 리뷰','My reviews')} · ${L(`${mine.length}번`,`${mine.length}`)}</h4>`+myRvHTML(mine,0):''}
   <iframe class="mapf" src="${esc(mapSrc(p))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
   <div class="btns"><a href="${l.g}" target="_blank" rel="noopener">Google ${L('지도','Maps')}</a><a href="${l.a}" target="_blank" rel="noopener">Apple ${L('지도','Maps')}</a><button onclick="share()">${L('Tesla로 보내기','Send to Tesla')}</button></div>
   ${p.tel||web?`<div class="acts">${p.tel?`<a href="tel:${esc(p.tel.split(';')[0].replace(/[^\d+]/g,''))}">${L('전화하기','Call')}</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener">${L('웹사이트','Website')}</a>`:''}</div>`:''}
   <div class="acts"><button onclick="favT('${p.id}',last.p.name);showRes()">${F[p.id]?L('찜 해제','Remove favorite'):L('찜하기','Favorite')}</button><button onclick="blkT('${p.id}',last.p.name);msg(L('이 가게는 앞으로 제외돼요','This place will be excluded'))">${L('다신 안 감','Never again')}</button></div>
   <div class="src">${p.g?L('장소 정보·리뷰 제공: Google','Place info & reviews: Google'):L('장소 정보: OpenStreetMap','Place info: OpenStreetMap')}${vc>1?' · '+L(`${vc-1}번 방문`,`${vc-1} past visits`):''}</div></div></div>`;hydrate($('#res'))}
+function carDot(el){const n=Math.round(el.scrollLeft/el.clientWidth),w=el.parentNode;w.querySelectorAll('.dots i').forEach((d,i)=>d.classList.toggle('on',i==n));const c=w.querySelector('.pc');if(c)c.textContent=(n+1)+' / '+w.querySelectorAll('.cp').length}
 async function share(){const{p}=last,l=links(p),d={title:p.name,text:p.name+(p.addr?' '+p.addr:''),url:l.v||l.g};
   try{if(navigator.share)await navigator.share(d);else{await navigator.clipboard.writeText(d.text+' '+d.url);msg(L('링크를 복사했어요. Tesla 앱에 붙여넣기 하세요.','Link copied — paste it into the Tesla app.'))}}catch{}}
 
@@ -598,17 +610,20 @@ const delH=()=>{if(!delAsk||!delAsk.length)return'';const xs=delAsk.filter(i=>H[
 
 /* ---------- gestures: swipe rows, drag-to-close sheets, star sliders ---------- */
 function setOpen(i){openRow=i;document.querySelectorAll('.hfront').forEach(f=>{f.style.transform=+f.dataset.i===openRow?`translateX(-${ACTW}px)`:''})}
-function bindSwipe(el){const i=+el.dataset.i;let x0,y0,dx=0,drag=null,base=0,lpT=null,lp=false;
+/* swipe is bound to the whole row, so you can swipe back from the action buttons too */
+function bindSwipe(fr){const row=fr.parentNode,i=+fr.dataset.i;let x0,y0,dx=0,drag=null,base=0,lpT=null,lp=false;
   const clr=()=>{clearTimeout(lpT);lpT=null};
-  el.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;base=openRow===i?-ACTW:0;dx=base;drag=null;lp=false;
-    if(!e.target.closest('button')){clr();lpT=setTimeout(()=>{lpT=null;if(drag!==true){lp=true;askDel(i)}},550)}},{passive:true});
-  el.addEventListener('contextmenu',e=>{e.preventDefault();if(!lp){lp=true;askDel(i)}});
-  el.addEventListener('touchcancel',clr);
-  el.addEventListener('touchmove',e=>{const mx=e.touches[0].clientX-x0,my=e.touches[0].clientY-y0;if(Math.abs(mx)>8||Math.abs(my)>8)clr();
-    if(drag===null){if(Math.abs(mx)>8&&Math.abs(mx)>Math.abs(my)){drag=true;el.style.transition='none'}else if(Math.abs(my)>8)drag=false}
-    if(drag){e.preventDefault();dx=Math.min(0,Math.max(-ACTW-24,base+mx));el.style.transform=`translateX(${dx}px)`}},{passive:false});
-  el.addEventListener('touchend',e=>{clr();if(lp){e.preventDefault();return}if(!drag)return;el.style.transition='';setOpen(dx<-ACTW/2?i:(openRow===i?null:openRow));if(openRow!==i)el.style.transform=''});
-  el.addEventListener('click',e=>{if(lp){lp=false;return}if(e.target.closest('button'))return;setOpen(openRow===i?null:i)})}
+  row.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;base=openRow===i?-ACTW:0;dx=base;drag=null;lp=false;clr();
+    if(fr.contains(e.target)&&!e.target.closest('button'))lpT=setTimeout(()=>{lpT=null;if(drag!==true){lp=true;askDel(i)}},550)},{passive:true});
+  fr.addEventListener('contextmenu',e=>{e.preventDefault();if(!lp){lp=true;askDel(i)}});
+  row.addEventListener('touchcancel',clr);
+  row.addEventListener('touchmove',e=>{const mx=e.touches[0].clientX-x0,my=e.touches[0].clientY-y0;if(Math.abs(mx)>8||Math.abs(my)>8)clr();
+    if(drag===null){if(Math.abs(mx)>8&&Math.abs(mx)>Math.abs(my)){drag=true;fr.style.transition='none'}else if(Math.abs(my)>8)drag=false}
+    if(drag){e.preventDefault();dx=Math.min(0,Math.max(-ACTW-24,base+mx));fr.style.transform=`translateX(${dx}px)`}},{passive:false});
+  row.addEventListener('touchend',e=>{clr();if(lp){e.preventDefault();return}if(!drag)return;fr.style.transition='';
+    const moved=dx-base,open=base<0?moved<40:moved<-40;   /* small swipe is enough: right closes, left opens */
+    setOpen(open?i:(openRow===i?null:openRow));if(openRow!==i)fr.style.transform=''});
+  fr.addEventListener('click',e=>{if(lp){lp=false;return}if(e.target.closest('button'))return;setOpen(openRow===i?null:i)})}
 function closeSheets(){sheet=false;locSheet=false;placeSheet=null;save();render()}
 function bindSheet(sh){const ov=sh.previousElementSibling;let y0,t0,dy=0,drag=false;
   sh.addEventListener('touchstart',e=>{drag=false;if(e.target.closest('input[type=range],.sw'))return;

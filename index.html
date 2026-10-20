@@ -176,15 +176,20 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .home .small{color:#fffe;font-size:12px;margin:12px 0 0;max-width:320px}.lerr{background:#0004;border-radius:10px;padding:8px 12px;font-size:13px;margin-top:12px}
 .av{width:26px;height:26px;border-radius:50%}.av.lg{width:48px;height:48px;flex:none}.acct{display:flex;gap:12px;align-items:center}
 @media (prefers-reduced-motion:reduce){.floaters,.logo{animation:none}.floaters{display:none}}
+.bars{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:6px}.bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.bar i{display:block;width:100%;min-height:3px;background:var(--ac);border-radius:6px 6px 2px 2px}.bv{font-size:12px;font-weight:700}.bd{font-size:11px;color:var(--mut)}
+.adm{border-color:var(--ac)}
 </style></head><body><div id="app"></div>
 <script>
 /* ===== Google 로그인용 Firebase 설정 — Firebase 콘솔 › 프로젝트 설정 › 내 앱(웹)에서 복사해 붙여넣으세요 ===== */
 window.FIREBASE_CONFIG={
-  apiKey:"AIzaSyDSwl4GGYL-Keha0ks8tCGe8bou2mPY5bU",
-  authDomain:"nearby-lunch.firebaseapp.com",
-  projectId:"nearby-lunch",
-  appId:"1:1064694231647:web:fb5ef1c06fb91e1b1e21ea"
+  apiKey:"",
+  authDomain:"",
+  projectId:"",
+  appId:""
 };
+/* 관리자 계정: 이 이메일로 Google 로그인했을 때만 API 키 관리와 통계 화면이 보여요 (Firestore 규칙에도 같은 이메일을 넣어야 해요) */
+window.ADMIN_EMAIL="heyoumin1511@gmail.com";
 </script>
 <script type="module">
 const C=window.FIREBASE_CONFIG,V='10.12.2',U=m=>`https://www.gstatic.com/firebasejs/${V}/firebase-${m}.js`;
@@ -203,7 +208,19 @@ else try{
     save:(uid,data)=>FS.setDoc(ud(uid),data),
     putPhoto:(uid,id,d)=>FS.setDoc(pd(uid,id),{d}),
     getPhoto:async(uid,id)=>{const d=await FS.getDoc(pd(uid,id));return d.exists()?d.data().d:null},
-    delPhoto:(uid,id)=>FS.deleteDoc(pd(uid,id))});
+    delPhoto:(uid,id)=>FS.deleteDoc(pd(uid,id)),
+    /* shared app settings (Google Maps key) — everyone reads, only the admin writes */
+    getConfig:async()=>{const d=await FS.getDoc(FS.doc(db,'config','app'));return d.exists()?d.data():{}},
+    setConfig:data=>FS.setDoc(FS.doc(db,'config','app'),data,{merge:true}),
+    /* anonymous usage counters */
+    bump:(pid,name,field,by)=>FS.setDoc(FS.doc(db,'placeStats',pid),{name:String(name||'').slice(0,190),[field]:FS.increment(by),last:FS.serverTimestamp()},{merge:true}),
+    visit:(day,vid,signedIn)=>FS.setDoc(FS.doc(db,'visits',day,'v',vid),{t:FS.serverTimestamp(),u:!!signedIn}),
+    touchUser:(uid,info,picked)=>FS.setDoc(FS.doc(db,'userStats',uid),{...info,last:FS.serverTimestamp(),...(picked?{picks:FS.increment(1)}:{})},{merge:true}),
+    /* admin-only reads (enforced by Firestore rules) */
+    topPlaces:async(field,n)=>(await FS.getDocs(FS.query(FS.collection(db,'placeStats'),FS.orderBy(field,'desc'),FS.limit(n)))).docs.map(d=>({id:d.id,...d.data()})),
+    countVisits:async day=>(await FS.getCountFromServer(FS.collection(db,'visits',day,'v'))).data().count,
+    countUsers:async()=>(await FS.getCountFromServer(FS.collection(db,'userStats'))).data().count,
+    recentUsers:async n=>(await FS.getDocs(FS.query(FS.collection(db,'userStats'),FS.orderBy('last','desc'),FS.limit(n)))).docs.map(d=>({id:d.id,...d.data()}))});
 }catch(e){console.error(e);done(null)}
 </script>
 <script>
@@ -211,11 +228,11 @@ const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const NL=navigator.language||'';
 const defS=()=>({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,maxP:4});
-let ns='',user=null,FB=null,authReady=false,guest=!!ld('lr_guest',0),S,H,F,B;
+let MAPKEY=ld('lr_mk',''),ns='',user=null,FB=null,authReady=false,guest=!!ld('lr_guest',0),S,H,F,B;
 const K=k=>ns+k;
 function loadLocal(){S=Object.assign(defS(),ld(K('lr_s'),{}));delete S.ff;if(!['pick','hist'].includes(S.tab))S.tab='pick';H=ld(K('lr_h'),[]);F=ld(K('lr_f'),{});B=ld(K('lr_b'),{})}
 loadLocal();
-let last=null,busy=false,rvOpen=null,W=null,cache=null,rvMore=false,wkMore=false,sheet=false,locSheet=false,view=ld('lr_guest',0)?'main':'home',unlocked=false,lastC=null,LS=[],lsT=null,lsN=0,sess=null;
+let last=null,busy=false,rvOpen=null,W=null,cache=null,rvMore=false,wkMore=false,sheet=false,locSheet=false,view=ld('lr_guest',0)?'main':'home',isAdmin=()=>!!(user&&user.email&&user.email.toLowerCase()===String(window.ADMIN_EMAIL||'').toLowerCase()),lastC=null,LS=[],lsT=null,lsN=0,sess=null;
 let cloudT=null,syncState='';
 const cloudData=()=>JSON.parse(JSON.stringify({S,H,F,B,updated:Date.now()}));
 async function pushCloud(){clearTimeout(cloudT);cloudT=null;if(!user||!FB)return;try{await FB.save(user.uid,cloudData());syncState='ok'}catch(e){syncState='err';console.error(e)}}
@@ -266,7 +283,6 @@ const gTypes=()=>{const t=[...new Set(S.inc.flatMap(c=>(CU.find(x=>x[0]==c)||[])
 const dist=(a,b,c,d)=>{const r=x=>x*Math.PI/180,h=Math.sin(r(c-a)/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(r(d-b)/2)**2;return 12742e3*Math.asin(Math.sqrt(h))};
 const fd=d=>{if(S.unit=='mi'){const mi=d/1609.344;return mi<.095?Math.max(50,Math.round(d*3.28084/50)*50)+' ft':mi.toFixed(mi<9.95?1:0)+' mi'}return d<1000?Math.round(d/10)*10+' m':(d/1000).toFixed(d<9950?1:0)+' km'};
 const loc=()=>new Promise((ok,no)=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>ok(p.coords),no,{enableHighAccuracy:true,timeout:10000,maximumAge:60000}):no(new Error('geo')));
-const PWH=212569102,fnv=s=>{let h=0x811c9dc5;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,0x01000193)>>>0}return h};
 
 /* ---------- radius slider: 0.1 mi … 20 mi ---------- */
 const RMIN=160,RMAX=32187;
@@ -339,7 +355,7 @@ const AT=[['servesLunch','점심 메뉴','Serves lunch'],['dineIn','매장 식�
    Details (rating, reviews, hours…) are fetched only for the one that gets picked. */
 const FMP=['id','displayName','types','location','shortFormattedAddress'].map(f=>'places.'+f).join();
 const FMD=['id','displayName','types','rating','userRatingCount','currentOpeningHours','regularOpeningHours','reviews','reviewSummary','location','shortFormattedAddress','photos','priceLevel','nationalPhoneNumber','websiteUri','googleMapsUri','editorialSummary','priceRange',...AT.map(a=>a[0])].join();
-const gH=fm=>({'Content-Type':'application/json','X-Goog-Api-Key':S.key,...(fm?{'X-Goog-FieldMask':fm}:{})});
+const gH=fm=>({'Content-Type':'application/json','X-Goog-Api-Key':MAPKEY,...(fm?{'X-Goog-FieldMask':fm}:{})});
 async function gErrMsg(r){let m='';try{m=(await r.json()).error.message}catch{}
   if(r.status==403)m=L('키 제한 설정을 확인하세요 (웹사이트 주소 · Places API (New) 허용)','Check key restrictions (website URL · Places API (New))')+(m?' — '+m:'');
   return 'Google '+r.status+(m?': '+m:'')}
@@ -352,7 +368,7 @@ async function gNear(la,lo,rad,types,fb){
     const cus=cuM(p.types,nm);return{id:'g:'+p.id,pid:p.id,name:nm,cus,cu:cus[0],tx:nm+' '+ty,la:p.location.latitude,lo:p.location.longitude,addr:p.shortFormattedAddress,ff:(p.types||[]).includes('fast_food_restaurant'),g:1,lite:1}}).filter(p=>p.name)}
 let gpool=null;const dcache=new Map();
 async function gPool(la,lo){
-  const k=[la.toFixed(3),lo.toFixed(3),S.radius,S.lang,gTypes().join(),S.key.slice(-6)].join();
+  const k=[la.toFixed(3),lo.toFixed(3),S.radius,S.lang,gTypes().join(),MAPKEY.slice(-6)].join();
   if(!gpool||gpool.k!=k||Date.now()-gpool.t>18e5)gpool={k,t:Date.now(),m:new Map(),calls:0};
   if(gpool.calls>=14)return[...gpool.m.values()];
   const t=gTypes();
@@ -399,7 +415,7 @@ async function osmGeo(q){const c=lastC||(S.place&&{latitude:S.place.la,longitude
   if(a.status=='rejected'&&b.status=='rejected')throw new Error('geo');
   const kept=[];
   return all.filter(x=>{if(kept.some(y=>dist(x.la,x.lo,y.la,y.lo)<40))return false;kept.push(x);return true}).sort((x,y)=>(hn?(y.n.startsWith(hn)-x.n.startsWith(hn)):0)).slice(0,8)}
-async function geoSearch(q){if(S.key){try{const v=await gAuto(q);if(v.length)return v}catch{}}return osmGeo(q)}
+async function geoSearch(q){if(MAPKEY){try{const v=await gAuto(q);if(v.length)return v}catch{}}return osmGeo(q)}
 const recentHTML=()=>(S.recent||[]).length?`<div class="lb">${L('최근 위치','Recent places')}</div>`+S.recent.map((x,i)=>`<button class="li" onclick="pickLoc(S.recent[${i}])">${esc(x.n)}</button>`).join(''):'';
 function lsInput(v,now){clearTimeout(lsT);const box=$('#lsr'),n=++lsN;v=v.trim();
   if(v.length<2){box.innerHTML=recentHTML();return}
@@ -460,7 +476,7 @@ async function go(){
     if(!S.place)lastC=c;
     msg(L('반경 안 음식점 모으는 중…','Collecting restaurants in range…'));
     const wp=weather(c.latitude,c.longitude);let raw=null,gErr='';
-    if(S.key){try{raw=await gPool(c.latitude,c.longitude)}catch(e){gErr=e.message;msg(L('Google 오류 — 무료 지도로 검색 중…','Google error — using free map data…'))}}
+    if(MAPKEY){try{raw=await gPool(c.latitude,c.longitude)}catch(e){gErr=e.message;msg(L('Google 오류 — 무료 지도로 검색 중…','Google error — using free map data…'))}}
     if(!raw)raw=await oPlaces(c.latitude,c.longitude);W=await wp;
     const seen={};let list=raw.filter(p=>{p.d=dist(c.latitude,c.longitude,p.la,p.lo);if(!p.g){const o=oh(p.hrs);p.open=o.open;p.today=o.today}
       if(seen[p.name]||B[p.id]||p.d>S.radius*1.03)return false;seen[p.name]=1;
@@ -486,6 +502,7 @@ async function go(){
     pick.total=list.length;pick.more=!!(pick.p.g&&gpool&&gpool.calls<14);
     msg('');rvMore=false;wkMore=false;await spin(list,pick.p);last=pick;
     H.unshift({id:pick.p.id,name:pick.p.name,la:pick.p.la,lo:pick.p.lo,ts:now});H=H.slice(0,300);save();showRes();
+    bump(pick.p.id,'pick',1,pick.p.name);if(user&&FB)FB.touchUser(user.uid,{},1).catch(()=>{});
     if(gErr)msg(L('Google 일부 오류: ','Google issue: ')+gErr);
     if(pick.p.g&&!pick.p.rs&&S.lang!='en')gSummary(pick.p);
   }catch(e){msg(e.message)}
@@ -499,7 +516,7 @@ const PL={PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PR
 function links(p){const a=`https://maps.apple.com/?daddr=${p.la},${p.lo}&q=${encodeURIComponent(p.name)}&dirflg=d`;
   return p.g?{g:`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(p.name)}&destination_place_id=${p.pid}&travelmode=driving`,a,v:p.uri}
     :{g:`https://www.google.com/maps/dir/?api=1&destination=${p.la},${p.lo}&travelmode=driving`,a}}
-const mapSrc=p=>p.g&&S.key?`https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(S.key)}&q=place_id:${p.pid}&language=${S.lang}`
+const mapSrc=p=>p.g&&MAPKEY?`https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(MAPKEY)}&q=place_id:${p.pid}&language=${S.lang}`
   :`https://maps.google.com/maps?q=${p.la},${p.lo}&z=17&hl=${S.lang}&output=embed`;
 function weekHTML(p){if(p.wk&&p.wk.length){const di=(new Date().getDay()+6)%7;return`<ul class="wk">${p.wk.map((x,i)=>`<li class="${i==di?'today':''}">${esc(x)}</li>`).join('')}</ul>`}
   return p.hrs?`<ul class="wk">${p.hrs.split(';').map(x=>`<li>${esc(x.trim())}</li>`).join('')}</ul>`:''}
@@ -510,9 +527,9 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
   const pr=[PL[p.pr]?'$'.repeat(PL[p.pr]):'',p.prg?.startPrice?money(p.prg.startPrice)+(p.prg.endPrice?'–'+money(p.prg.endPrice):'+'):''].filter(Boolean).join(' ');
   const rvs=p.rv||[],shown=rvMore?rvs:rvs.slice(0,2),long=rvs.length>2||rvs.some(v=>v.t.length>200);
   const hl=highlights(rvs);
-  const phs=S.key?(p.phs||(p.ph?[{n:p.ph}]:[])):[],fav=!!F[p.id],rvd=mine.length>0;
+  const phs=MAPKEY?(p.phs||(p.ph?[{n:p.ph}]:[])):[],fav=!!F[p.id],rvd=mine.length>0;
   const badges=fav||rvd?`<div class="bdg">${fav?`<span title="${L('찜한 곳','Favorite')}">⭐</span>`:''}${rvd?`<span title="${L('리뷰 남긴 곳','Reviewed')}">📝</span>`:''}</div>`:'';
-  const img=phs.length?`<div class="car"><div class="cs" onscroll="carDot(this)">${phs.map((x,i)=>`<div class="cp"><img src="https://places.googleapis.com/v1/${x.n}/media?maxWidthPx=900&key=${encodeURIComponent(S.key)}" alt="" loading="${i?'lazy':'eager'}" onerror="this.parentNode.classList.add('bad')">${x.a?`<span class="pa">${esc(x.a)}</span>`:''}</div>`).join('')}</div>${badges}
+  const img=phs.length?`<div class="car"><div class="cs" onscroll="carDot(this)">${phs.map((x,i)=>`<div class="cp"><img src="https://places.googleapis.com/v1/${x.n}/media?maxWidthPx=900&key=${encodeURIComponent(MAPKEY)}" alt="" loading="${i?'lazy':'eager'}" onerror="this.parentNode.classList.add('bad')">${x.a?`<span class="pa">${esc(x.a)}</span>`:''}</div>`).join('')}</div>${badges}
     ${phs.length>1?`<div class="dots">${phs.map((_,i)=>`<i class="${i?'':'on'}"></i>`).join('')}</div><div class="pc">1 / ${phs.length}</div>`:''}</div>`:'';
   const sub=[cuName(p.cu)+(p.ff?L(' · 간편식',' · Quick bite'):''),pr,fd(p.d)].filter(Boolean).join(' · ');
   const rating=p.rt?`★ ${p.rt} <span class="mut">(${(p.n||0).toLocaleString()})</span>`:mr?`★ ${mr.toFixed(1)} <span class="mut">${L('내 평가','your rating')}</span>`:'';
@@ -545,8 +562,13 @@ async function share(){const{p}=last,l=links(p),d={title:p.name,text:p.name+(p.a
   try{if(navigator.share)await navigator.share(d);else{await navigator.clipboard.writeText(d.text+' '+d.url);msg(L('링크를 복사했어요. Tesla 앱에 붙여넣기 하세요.','Link copied — paste it into the Tesla app.'))}}catch{}}
 
 /* ---------- favorites / blacklist / history / review ---------- */
-function favT(id,n){F[id]?delete F[id]:F[id]=n;save()}
-function blkT(id,n){B[id]?delete B[id]:B[id]=n;save()}
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const nameOf=id=>(H.find(h=>h.id==id)||{}).name||F[id]||B[id]||'';
+function bump(id,field,by,name){if(!FB||!id)return;FB.bump(id,name||nameOf(id),field,by).catch(()=>{})}
+function favT(id,n){if(F[id]){delete F[id];bump(id,'fav',-1,n)}else{F[id]=n||nameOf(id);bump(id,'fav',1,n)}save()}
+function blkT(id,n){if(B[id]){delete B[id];bump(id,'exc',-1,n)}else{B[id]=n||nameOf(id);bump(id,'exc',1,n)}save()}
+function logVisit(){if(!FB)return;const d=today();if(ld('lr_vday','')===d)return;let vid=ld('lr_vid','');if(!vid){vid=Math.random().toString(36).slice(2,12)+Date.now().toString(36);sv('lr_vid',vid)}
+  FB.visit(d,vid,!!user).then(()=>sv('lr_vday',d)).catch(()=>sv('lr_vday',d))}
 /* ---------- photos: compressed and kept in this browser's IndexedDB ---------- */
 const idb=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open('lr_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
   const tx=async(m,f)=>{const db=await open();return new Promise((ok,no)=>{const t=db.transaction('p',m),q=f(t.objectStore('p'));t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)})};
@@ -579,10 +601,10 @@ function syncRv(){if(rvOpen==null||!rvD)return;const t=document.getElementById('
 
 let openRow=null,rvD=null;const ACTW=264;
 function openRv(i){if(rvOpen!=null&&rvOpen!==i)rvCancel(1);rvOpen=i;openRow=null;const r=H[i].rv||{};rvD={crowd:3,spd:3,svc:3,min:40,time:'12:00',memo:'',...r,photos:[...(r.photos||[])],added:[],removed:[]};render();setTimeout(()=>document.querySelector('.rvf')?.scrollIntoView({behavior:'smooth',block:'center'}),50)}
-function rvSave(i){syncRv();delPhotos(rvD.removed);H[i].rv={time:rvD.time,crowd:rvD.crowd,spd:rvD.spd,svc:rvD.svc,min:rvD.min,memo:rvD.memo,photos:rvD.photos};rvOpen=null;rvD=null;save();render()}
+function rvSave(i){syncRv();delPhotos(rvD.removed);if(!H[i].rv)bump(H[i].id,'rv',1,H[i].name);H[i].rv={time:rvD.time,crowd:rvD.crowd,spd:rvD.spd,svc:rvD.svc,min:rvD.min,memo:rvD.memo,photos:rvD.photos};rvOpen=null;rvD=null;save();render()}
 function rvCancel(quiet){if(rvD)delPhotos(rvD.added);rvOpen=null;rvD=null;if(!quiet)render()}
 let rvDelAsk=null;
-function rvDel(){const i=rvDelAsk;rvDelAsk=null;if(i!=null&&H[i]&&H[i].rv){delPhotos([...(H[i].rv.photos||[]),...(rvD?rvD.added:[])]);delete H[i].rv;save()}rvOpen=null;rvD=null;render()}
+function rvDel(){const i=rvDelAsk;rvDelAsk=null;if(i!=null&&H[i]&&H[i].rv){bump(H[i].id,'rv',-1,H[i].name);delPhotos([...(H[i].rv.photos||[]),...(rvD?rvD.added:[])]);delete H[i].rv;save()}rvOpen=null;rvD=null;render()}
 const rvDelH=()=>rvDelAsk==null||!H[rvDelAsk]?'':`<div class="ov" onclick="rvDelAsk=null;render()"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
   <p><b>${esc(H[rvDelAsk].name)}</b></p><p class="mut">${L('이 리뷰를 삭제할까요? 첨부한 사진도 함께 삭제돼요. 방문 기록은 남아요.','Delete this review? Its photos will be deleted too. The visit stays in history.')}</p>
   <div class="acts"><button onclick="rvDelAsk=null;render()">${L('취소','Cancel')}</button><button class="del" onclick="rvDel()">${L('리뷰 삭제','Delete review')}</button></div></div>`;
@@ -663,7 +685,7 @@ const placeH=()=>{const a=aggPlaces().find(x=>x.id==placeSheet);if(!a)return'';c
 function askDel(i){delAsk=[i];openRow=null;try{navigator.vibrate&&navigator.vibrate(15)}catch{}render()}
 function askDelSel(){if(sel.size){delAsk=[...sel];render()}}
 function doDel(){const ids=(delAsk||[]).filter(i=>H[i]).sort((a,b)=>b-a);delAsk=null;
-  if(ids.length){ids.forEach(i=>{delPhotos(H[i].rv&&H[i].rv.photos);H.splice(i,1)});rvOpen=null;openRow=null;save()}
+  if(ids.length){ids.forEach(i=>{if(H[i].rv)bump(H[i].id,'rv',-1,H[i].name);delPhotos(H[i].rv&&H[i].rv.photos);H.splice(i,1)});rvOpen=null;openRow=null;save()}
   if(selDay){selDay=null;sel=new Set()}render()}
 const delH=()=>{if(!delAsk||!delAsk.length)return'';const xs=delAsk.filter(i=>H[i]),one=xs.length==1;
   return`<div class="ov" onclick="delAsk=null;render()"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
@@ -712,7 +734,6 @@ function bindGestures(){document.querySelectorAll('.dh[data-k]').forEach(bindDay
 const listHTML=(o,fn)=>Object.keys(o).length?Object.entries(o).map(([k,v])=>`<div class="srow"><span>${esc(v)}</span><button onclick="${fn}('${k}','');render()">${L('삭제','Remove')}</button></div>`).join(''):`<div class="mut">${L('없음','None')}</div>`;
 
 /* ---------- settings ---------- */
-function unlock(){const v=($('#pw')?.value||'').trim();if(fnv(v)===PWH){unlocked=true;render()}else{const m=$('#pwm');if(m)m.textContent=L('비밀번호가 틀렸어요.','Wrong password.')}}
 const seg=(on,fn,t)=>`<button class="${on?'on':''}" onclick="${fn}">${t}</button>`;
 function setLang(v){S.lang=v;cache=null;gpool=null;save();render()}
 function settingsHTML(){const o=esc(location.origin);
@@ -725,19 +746,49 @@ function settingsHTML(){const o=esc(location.origin);
   <div class="card"><p class="ct"><b>${L('일반','General')}</b></p>
   <div class="srow"><span>${L('언어','Language')}</span><div class="seg">${seg(S.lang=='ko',"setLang('ko')",'한국어')}${seg(S.lang=='en',"setLang('en')",'English')}</div></div>
   <div class="srow"><span>${L('거리 단위','Distance unit')}</span><div class="seg">${seg(S.unit=='mi',"S.unit='mi';save();render()",L('마일 (mi)','Miles'))}${seg(S.unit=='km',"S.unit='km';save();render()",L('킬로미터 (km)','Kilometers'))}</div></div></div>
-  <div class="card"><p class="ct"><b>Google API</b> <span class="tag">${S.key?L('연결됨','Connected'):L('미연결 · 무료 지도 사용 중','Not connected · using free map data')}</span></p>
-  ${!unlocked?`<p class="mut">${L('API 키를 보거나 바꾸려면 비밀번호를 입력하세요.','Enter the password to view or change the API key.')}</p>
-    <div class="pw"><input type="password" id="pw" inputmode="numeric" autocomplete="off" placeholder="${L('비밀번호','Password')}" onkeydown="if(event.key=='Enter')unlock()"><button onclick="unlock()">${L('잠금 해제','Unlock')}</button></div><div id="pwm" class="no mut" style="margin-top:6px"></div>`
-  :`<ol class="steps"><li>${L('<a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud 콘솔</a>에서 프로젝트를 만들고 결제 계정 연결','Create a project in the <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud console</a> and link billing')}</li>
-    <li>${L('API 라이브러리에서 <b>Places API (New)</b>와 <b>Maps Embed API</b> 사용 설정','Enable <b>Places API (New)</b> and <b>Maps Embed API</b> in the API Library')}</li>
-    <li>${L('사용자 인증 정보 → API 키 만들기','Credentials → Create API key')}</li>
-    <li>${L(`키 제한: 웹사이트에 <code>${o}/*</code> 등록, API는 위 2개만 허용`,`Restrict the key to <code>${o}/*</code> and the 2 APIs above`)}</li>
-    <li>${L('할당량에서 Nearby Search를 하루 50회 정도로 제한하면 요금 걱정이 없어요','Cap Nearby Search at about 50/day in Quotas to avoid charges')}</li></ol>
-    <input type="password" value="${esc(S.key)}" placeholder="AIza…" autocomplete="off" onchange="S.key=this.value.replace(/[^A-Za-z0-9_-]/g,'');gpool=null;save();render()">
-    <div class="acts">${S.key?`<button onclick="S.key='';gpool=null;save();render()">${L('키 삭제','Remove key')}</button>`:''}<button onclick="unlocked=false;render()">${L('잠그기','Lock')}</button></div>
-    <p class="mut" style="margin-top:10px">${L('키가 없거나 오류가 나면 OpenStreetMap(무료)으로 자동 전환돼요. 키는 이 기기에만 저장돼요.','Without a key, or on errors, the app falls back to OpenStreetMap (free). The key is stored only on this device.')}</p>`}</div>
+  ${isAdmin()?adminCard(o):''}
   <div class="card"><p class="ct"><b>${L('찜한 맛집','Favorites')}</b> <span class="mut">${L('추천 확률이 올라가요','picked more often')}</span></p>${listHTML(F,'favT')}</div>
   <div class="card"><p class="ct"><b>${L('제외 목록','Excluded')}</b></p>${listHTML(B,'blkT')}</div>`}
+
+/* ---------- admin ---------- */
+let keyMsg='';
+async function saveKey(){const v=($('#mk')?.value||'').replace(/[^A-Za-z0-9_-]/g,'');keyMsg=L('저장 중…','Saving…');render();
+  try{await FB.setConfig({mapsKey:v,updatedBy:user.email});MAPKEY=v;sv('lr_mk',v);gpool=null;keyMsg=v?L('저장했어요. 이제 모든 사용자가 이 키로 Google 데이터를 봐요.','Saved. Everyone now uses this key.'):L('키를 지웠어요. 모두 무료 지도 데이터로 돌아가요.','Key removed. Everyone falls back to free map data.')}
+  catch(e){keyMsg=L('저장 실패: ','Save failed: ')+(e.code||e.message)+L(' — Firestore 규칙의 관리자 이메일을 확인하세요.',' — check the admin email in the Firestore rules.')}render()}
+function adminCard(o){const old=S.key&&!MAPKEY?S.key:'';
+  return`<div class="card adm"><p class="ct"><b>${L('관리자','Admin')}</b> <span class="tag">${esc(user.email)}</span></p>
+  <button class="primary" style="margin:6px 0 4px" onclick="view='admin';render();loadAdmin()">${L('사용 통계 대시보드','Usage dashboard')}</button>
+  <div class="lb">${L('공용 Google Maps API 키','Shared Google Maps API key')} <span class="tag">${MAPKEY?L('연결됨','Connected'):L('미연결','Not set')}</span></div>
+  <p class="mut">${L('여기 넣은 키를 모든 사용자가 함께 써요. 다른 사용자에게는 이 칸이 보이지 않아요.','Every user shares this key. Other users never see this section.')}</p>
+  <div class="pw"><input type="password" id="mk" value="${esc(MAPKEY||old)}" placeholder="AIza…" autocomplete="off"><button onclick="saveKey()">${L('저장','Save')}</button></div>
+  ${keyMsg?`<p class="mut" style="margin-top:6px">${esc(keyMsg)}</p>`:''}
+  <ol class="steps"><li>${L('<a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud 콘솔</a>에서 <b>Places API (New)</b>와 <b>Maps Embed API</b> 사용 설정','In the <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud console</a> enable <b>Places API (New)</b> and <b>Maps Embed API</b>')}</li>
+    <li>${L(`키 제한: 웹사이트에 <code>${o}/*</code>만, API는 위 2개만 허용`,`Restrict the key to <code>${o}/*</code> and those 2 APIs`)}</li>
+    <li>${L('<b>할당량 → Nearby Search</b>를 하루 300회 정도로 제한 (여러 명이 함께 쓰므로 꼭!)','Cap <b>Quotas → Nearby Search</b> at about 300/day — essential with many users')}</li>
+    <li>${L('결제 → 예산 및 알림에서 월 예산 알림 설정','Set a monthly budget alert in Billing')}</li></ol></div>`}
+let AD=null,adTab='pick';
+async function loadAdmin(){AD={loading:true};render();
+  try{const days=[...Array(7)].map((_,i)=>{const d=new Date(Date.now()-i*864e5);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}).reverse();
+    const[vis,users,recent,pick,fav,exc,rv]=await Promise.all([Promise.all(days.map(d=>FB.countVisits(d).catch(()=>0))),FB.countUsers(),FB.recentUsers(20),
+      ...['pick','fav','exc','rv'].map(f=>FB.topPlaces(f,15))]);
+    AD={days,vis,users,recent,top:{pick,fav,exc,rv},at:new Date()}}
+  catch(e){AD={err:(e.code||e.message)}}render()}
+function adminHTML(){if(!isAdmin())return`<div class="card mut">${L('관리자만 볼 수 있어요.','Admins only.')}</div>`;
+  if(!AD||AD.loading)return`<div class="card mut">${L('통계를 불러오는 중…','Loading stats…')}</div>`;
+  if(AD.err)return`<div class="card"><p class="no">${L('불러오기 실패: ','Failed: ')}${esc(AD.err)}</p><p class="mut">${L('Firestore 규칙이 최신인지, 관리자 이메일이 맞는지 확인하세요.','Check that the Firestore rules are up to date and the admin email matches.')}</p><button onclick="loadAdmin()">${L('다시 시도','Retry')}</button></div>`;
+  const mx=Math.max(1,...AD.vis),tl=AD.top[adTab].filter(x=>(x[adTab]||0)>0);
+  const lab={pick:L('많이 뽑힘','Most picked'),fav:L('찜','Favorited'),exc:L('제외','Excluded'),rv:L('리뷰','Reviewed')};
+  const ago=t=>{if(!t||!t.toDate)return'';const m=Math.round((Date.now()-t.toDate())/6e4);return m<60?L(`${m}분 전`,`${m}m ago`):m<1440?L(`${Math.round(m/60)}시간 전`,`${Math.round(m/60)}h ago`):L(`${Math.round(m/1440)}일 전`,`${Math.round(m/1440)}d ago`)};
+  return`<div class="st3"><div><b>${AD.vis[6]}</b><span>${L('오늘 방문자','visitors today')}</span></div><div><b>${AD.vis.reduce((a,b)=>a+b,0)}</b><span>${L('7일 방문 (일별 합)','7-day visits')}</span></div><div><b>${AD.users}</b><span>${L('로그인 사용자','signed-in users')}</span></div></div>
+  <div class="card"><p class="ct"><b>${L('최근 7일 방문자','Visitors, last 7 days')}</b></p><div class="bars">${AD.days.map((d,i)=>`<div class="bar"><span class="bv">${AD.vis[i]}</span><i style="height:${Math.round(AD.vis[i]/mx*100)}%"></i><span class="bd">${d.slice(5).replace('-','/')}</span></div>`).join('')}</div>
+    <p class="mut" style="font-size:12px;margin:8px 0 0">${L('기기·브라우저 기준 하루 1회로 셉니다.','Counted once per device/browser per day.')}</p></div>
+  <div class="card"><p class="ct"><b>${L('음식점 순위','Top restaurants')}</b></p>
+    <div class="seg" style="margin:4px 0 8px">${['pick','fav','exc','rv'].map(f=>seg(adTab==f,`adTab='${f}';render()`,lab[f])).join('')}</div>
+    ${tl.length?tl.map((x,i)=>`<div class="srow"><span><b>${i+1}.</b> ${esc(x.name||x.id)}</span><span class="tag">${x[adTab]}${L('회','')}</span></div>`).join(''):`<p class="mut">${L('아직 데이터가 없어요.','No data yet.')}</p>`}</div>
+  <div class="card"><p class="ct"><b>${L('최근 접속한 로그인 사용자','Recently active users')}</b></p>
+    ${AD.recent.length?AD.recent.map(u=>`<div class="srow"><span class="acct">${u.photo?`<img class="av" src="${esc(u.photo)}" alt="" referrerpolicy="no-referrer">`:''}<span><b>${esc(u.name||'-')}</b><br><span class="mut" style="font-size:12px">${esc(u.email||'')}</span></span></span><span class="mut" style="font-size:12px;text-align:right">${ago(u.last)}<br>${L(`${u.picks||0}번 뽑음`,`${u.picks||0} picks`)}</span></div>`).join(''):`<p class="mut">${L('아직 없어요.','None yet.')}</p>`}</div>
+  <div class="acts"><button onclick="loadAdmin()">${L('새로고침','Refresh')}</button></div>
+  <p class="mut" style="font-size:12px;text-align:center">${L('업데이트: ','Updated ')}${AD.at.toLocaleTimeString(loc_())}</p>`}
 
 /* ---------- render ---------- */
 const GEAR='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
@@ -755,10 +806,10 @@ const sheetH=()=>`<div class="ov" onclick="sheet=false;save();render()"></div><d
 <div class="lb">${L('가격대','Price')}</div><div class="rv-now" id="plab">${pLab(S.maxP)}</div>
 <input type="range" min="1" max="4" step="1" value="${S.maxP}" oninput="S.maxP=+this.value;$('#plab').textContent=pLab(S.maxP)" onchange="save()" aria-label="${L('가격대','Price')}">
 <div class="rr"><span>$</span><span>$$</span><span>$$$</span><span>${L('전체','Any')}</span></div>
-${S.key?'':`<div class="mut" style="font-size:12px">${L('가격 필터는 Google API를 연결해야 적용돼요.','The price filter needs a Google API key.')}</div>`}
-${S.key?`<div class="lb">${L('최소 Google 별점','Minimum Google rating')}</div><div class="pills">${[0,3.5,4,4.3,4.5].map(r=>pill(r==S.minR,`S.minR=${r};save();render()`,r?'★ '+r+'+':L('전체','Any'))).join('')}</div>`:''}
+${MAPKEY?'':`<div class="mut" style="font-size:12px">${L('가격 필터는 Google API를 연결해야 적용돼요.','The price filter needs a Google API key.')}</div>`}
+${MAPKEY?`<div class="lb">${L('최소 Google 별점','Minimum Google rating')}</div><div class="pills">${[0,3.5,4,4.3,4.5].map(r=>pill(r==S.minR,`S.minR=${r};save();render()`,r?'★ '+r+'+':L('전체','Any'))).join('')}</div>`:''}
 <div class="lb">${L('최소 리뷰 수','Minimum number of reviews')}</div><div class="pills">${[0,50,100,300,500,1000].map(n=>pill(n==S.minN,`S.minN=${n};save();render()`,n?n.toLocaleString()+L('개 이상','+'):L('전체','Any'))).join('')}</div>
-${S.key?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필터는 Google API를 연결해야 적용돼요.','Rating and review-count filters need a Google API key.')}</div>`}
+${MAPKEY?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필터는 Google API를 연결해야 적용돼요.','Rating and review-count filters need a Google API key.')}</div>`}
 <div class="lb">${L('옵션','Options')}</div><div class="pills">${pill(S.open,'S.open=!S.open;save();render()',L('문 닫은 곳 제외','Hide closed places'))}</div>
 <div class="lb">${L('음식 종류 (한 번 탭 = 포함, 두 번 = 제외)','Cuisine (tap once = include, twice = exclude)')}</div>${CG.map(g=>`<div class="cg">${L(g[1],g[2])}</div><div class="pills">${CU.filter(c=>c[4]==g[0]).map(c=>`<button class="pill ${chipCls(c[0])}" onclick="chip('${c[0]}')">${c[3]} ${L(c[1],c[2])}</button>`).join('')}</div>`).join('')}
 ${S.inc.length||S.exc.length?`<button class="link" onclick="S.inc=[];S.exc=[];save();render()">${L('음식 종류 선택 초기화','Clear cuisine choices')}</button>`:''}
@@ -767,15 +818,16 @@ function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,maxP:4,i
 function render(){syncRv();
   if(view=='home'){$('#app').innerHTML=homeHTML();document.documentElement.lang=S.lang;startReel();return}
   stopReel();
-  const inSet=view=='set';
-  const body=inSet?settingsHTML():S.tab=='hist'?histHTML()+delH()+rvDelH()+(placeSheet?placeH():'')
-    :`${S.key?'':`<button class="banner" onclick="view='set';render()">${L('Google API 키를 연결하면 별점·리뷰·사진·지도를 볼 수 있어요 →','Connect a Google API key for ratings, reviews, photos and maps →')}</button>`}
+  if(view=='admin'&&!isAdmin())view='set';
+  const inSet=view=='set'||view=='admin';
+  const body=view=='admin'?adminHTML():inSet?settingsHTML():S.tab=='hist'?histHTML()+delH()+rvDelH()+(placeSheet?placeH():'')
+    :`${MAPKEY||!isAdmin()?'':`<button class="banner" onclick="view='set';render()">${L('Google API 키를 연결하면 별점·리뷰·사진·지도를 볼 수 있어요 →','Connect a Google API key for ratings, reviews, photos and maps →')}</button>`}
     <div class="hero"><button class="locb" onclick="locSheet=true;render();setTimeout(()=>$('#lsq')?.focus(),60)">${S.place?esc(S.place.n):L('현재 위치','Current location')} ▾</button>
     <div class="mut">${L('오늘 점심은?','What’s for lunch?')}</div><div id="slot">${last?esc(last.p.name):'?'}</div>
     <button class="spin" onclick="go()"><span>🎲</span><b>${L('뽑기','SPIN')}</b></button><div id="msg" class="mut"></div>
     </div><div id="res"></div>${sheet?sheetH():''}${locSheet?locSheetH():''}`;
   const fab=!inSet&&S.tab=='pick'&&!sheet&&!locSheet?`<button class="ffab ${fabHide?'hide':''}" onclick="sheet=true;render()">${FUNNEL}${L('필터','Filters')}${fCount()?`<span class="n">${fCount()}</span>`:''}</button>`:'';
-  $('#app').innerHTML=`<header><h1 ${inSet?'':`class="hlink" onclick="view='home';render()"`}>${inSet?L('설정','Settings'):L('점심 룰렛','Lunch Roulette')}</h1>${inSet?`<button class="tb" onclick="view='main';render()">${L('완료','Done')}</button>`:`<button class="ib" onclick="view='set';render()" aria-label="${L('설정','Settings')}">${GEAR}</button>`}</header><main>${body}</main>
+  $('#app').innerHTML=`<header><h1 ${inSet?'':`class="hlink" onclick="view='home';render()"`}>${view=='admin'?L('관리자 대시보드','Admin dashboard'):inSet?L('설정','Settings'):L('점심 룰렛','Lunch Roulette')}</h1>${inSet?`<button class="tb" onclick="view=view=='admin'?'set':'main';render()">${L('완료','Done')}</button>`:`<button class="ib" onclick="view='set';render()" aria-label="${L('설정','Settings')}">${GEAR}</button>`}</header><main>${body}</main>
   ${fab}${inSet?'':`<nav>${[['pick',L('뽑기','Pick')],['hist',L('기록','History')]].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';save();render()">${t[1]}</button>`).join('')}</nav>`}`;
   document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes();hydrate()}
 /* ---------- accounts ---------- */
@@ -788,7 +840,9 @@ function onAuth(u){if(u){user={uid:u.uid,name:u.displayName||u.email,email:u.ema
       else await migrateGuest();
       last=null;cache=null;gpool=null;render()}).catch(e=>{syncState='err';console.error(e);render()})}
   else{user=null;ns='';loadLocal();authReady=true;render()}}
-function initFB(){FB=window.__fb||null;if(FB)FB.onUser(onAuth);else{authReady=true;render()}}
+async function loadConfig(){if(!FB)return;try{const c=await FB.getConfig();const k=c.mapsKey||'';if(k!==MAPKEY){MAPKEY=k;sv('lr_mk',k);gpool=null;render()}}catch(e){console.error(e)}}
+function initFB(){FB=window.__fb||null;if(!MAPKEY&&window.MAPS_KEY)MAPKEY=window.MAPS_KEY;
+  if(FB){loadConfig();FB.onUser(u=>{onAuth(u);logVisit();if(u)FB.touchUser(u.uid,{email:u.email||'',name:u.displayName||'',photo:u.photoURL||''},0).catch(()=>{})})}else{authReady=true;render()}}
 if('__fb' in window)initFB();else window.addEventListener('fbready',initFB,{once:true});
 let loginMsg='';
 async function doLogin(){if(!FB){loginMsg=L('아직 로그인 기능이 설정되지 않았어요. 사이트 관리자가 Firebase 설정을 넣어야 해요.','Sign-in is not set up yet. The site owner needs to add the Firebase settings.');render();return}

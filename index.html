@@ -92,7 +92,7 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 /* history rows with swipe actions */
 .hi{border-top:1px solid var(--ln)}.hi:first-child{border:0}
 .hrow{position:relative;overflow:hidden;border-radius:12px;margin:6px 0}
-.hact{position:absolute;top:0;right:0;bottom:0;width:176px;display:flex}
+.hact{position:absolute;top:0;right:0;bottom:0;width:264px;display:flex}
 .hact button{flex:1;border:0;border-radius:0;color:#fff;font-weight:700;font-size:14px;padding:0 6px}
 .a-fav{background:#f08c00}.a-ex{background:#e03131}
 .hfront{position:relative;z-index:1;background:var(--card);padding:12px 4px;transition:transform .22s ease;touch-action:pan-y;cursor:pointer}
@@ -129,6 +129,22 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .hsel.on .ck{background:var(--ac);border-color:var(--ac)}.hsel.on .ck::after{content:'';width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:translate(0,-1px) rotate(45deg)}
 .selbar{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:520px;margin:0 auto;z-index:7;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:10px 10px 10px 16px;box-shadow:0 6px 24px #0003;animation:up .2s}
 .selbar .del:disabled{opacity:.4}
+.a-info{background:#868e96}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.th{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--soft);flex:none}
+.th img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}.th.gone{display:none}
+.th .x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;background:#000a;color:#fff;font-size:14px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
+.thumbs.big .th{width:84px;height:84px}
+.phb{display:flex;gap:8px;margin-top:8px}.phb label{flex:1;text-align:center;border:1px solid var(--ln);background:var(--card);border-radius:10px;padding:10px 6px;font-size:14px;font-weight:600;cursor:pointer}
+.phb input{display:none}
+.pv{position:fixed;inset:0;background:#000e;z-index:20;display:flex;align-items:center;justify-content:center;padding:16px;animation:fade .2s}.pv img{max-width:100%;max-height:100%;border-radius:8px}
+@keyframes fade{from{opacity:0}}
+.rvdel{color:#e03131;border-color:#e03131}
+.hbar{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}.hbar .seg{align-self:flex-start}
+.hbar input{background:var(--card)}
+.pl{display:flex;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid var(--ln);cursor:pointer}.pl:first-child{border:0}.pl .pn{flex:1;min-width:0}
+.cnt{flex:none;text-align:center;min-width:52px;background:var(--soft);border-radius:12px;padding:6px 8px}.cnt b{display:block;font-size:20px;color:var(--ac);line-height:1.1}.cnt span{font-size:11px;color:var(--mut)}
+.st3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}.st3 div{background:var(--soft);border-radius:12px;padding:10px 6px;text-align:center}.st3 b{display:block;font-size:18px}.st3 span{font-size:12px;color:var(--mut)}
+.myrv{background:var(--soft);border-radius:12px;padding:12px;margin:8px 0;font-size:14px}.myrv .d{font-weight:700;font-size:13px}
 </style></head><body><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -423,7 +439,7 @@ const mapSrc=p=>p.g&&S.key?`https://www.google.com/maps/embed/v1/place?key=${enc
 function weekHTML(p){if(p.wk&&p.wk.length){const di=(new Date().getDay()+6)%7;return`<ul class="wk">${p.wk.map((x,i)=>`<li class="${i==di?'today':''}">${esc(x)}</li>`).join('')}</ul>`}
   return p.hrs?`<ul class="wk">${p.hrs.split(';').map(x=>`<li>${esc(x.trim())}</li>`).join('')}</ul>`:''}
 function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=visits(p.id),st=status(p),cr=crowd(p);
-  const notes=H.filter(h=>h.id==p.id&&h.rv&&h.rv.memo).slice(0,2);
+  const mine=H.map((h,i)=>i).filter(i=>H[i].id==p.id&&H[i].rv);
   const web=p.web&&/^https?:\/\//.test(p.web)?p.web:p.web?'https://'+p.web:'';
   const money=m=>{try{return new Intl.NumberFormat(loc_(),{style:'currency',currency:m.currencyCode||'USD',maximumFractionDigits:0}).format(+m.units||0)}catch{return m.units}};
   const pr=[PL[p.pr]?'$'.repeat(PL[p.pr]):'',p.prg?.startPrice?money(p.prg.startPrice)+(p.prg.endPrice?'–'+money(p.prg.endPrice):'+'):''].filter(Boolean).join(' ');
@@ -450,21 +466,51 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
   <h4>${L('추천 이유','Why this pick')}</h4>${reasons||`<p class="mut">${L('이 근처에서 무작위로 골랐어요.','Picked at random from nearby options.')}</p>`}
   ${rvs.length?`<h4>${L('Google 리뷰','Google reviews')}</h4>`+shown.map(v=>`<div class="rv"><span class="st">${'★'.repeat(Math.round(v.r||0))}</span> <b>${esc(v.a)}</b> <span class="m">${esc(v.w||'')}</span><div>${esc(rvMore||v.t.length<=200?v.t:v.t.slice(0,200)+'…')}</div></div>`).join('')
     +(long?`<button class="link" onclick="rvMore=!rvMore;showRes()">${rvMore?L('리뷰 접기','Show less'):L(`리뷰 ${rvs.length}개 전체 보기`,`Show all ${rvs.length} reviews`)}</button>`:''):''}
-  ${notes.length?`<h4>${L('내 메모','My notes')}</h4>`+notes.map(h=>`<div class="rv"><span class="st">${'★'.repeat(Math.round(rvScore(h.rv)))}</span> <span class="m">${new Date(h.ts).toLocaleDateString(loc_())}</span><div>${esc(h.rv.memo)}</div></div>`).join(''):''}
+  ${mine.length?`<h4>${L('내 리뷰','My reviews')} · ${L(`${mine.length}번`,`${mine.length}`)}</h4>`+myRvHTML(mine,0):''}
   <iframe class="mapf" src="${esc(mapSrc(p))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
   <div class="btns"><a href="${l.g}" target="_blank" rel="noopener">Google ${L('지도','Maps')}</a><a href="${l.a}" target="_blank" rel="noopener">Apple ${L('지도','Maps')}</a><button onclick="share()">${L('Tesla로 보내기','Send to Tesla')}</button></div>
   ${p.tel||web?`<div class="acts">${p.tel?`<a href="tel:${esc(p.tel.split(';')[0].replace(/[^\d+]/g,''))}">${L('전화하기','Call')}</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener">${L('웹사이트','Website')}</a>`:''}</div>`:''}
   <div class="acts"><button onclick="favT('${p.id}',last.p.name);showRes()">${F[p.id]?L('찜 해제','Remove favorite'):L('찜하기','Favorite')}</button><button onclick="blkT('${p.id}',last.p.name);msg(L('이 가게는 앞으로 제외돼요','This place will be excluded'))">${L('다신 안 감','Never again')}</button></div>
-  <div class="src">${p.g?L('장소 정보·리뷰 제공: Google','Place info & reviews: Google'):L('장소 정보: OpenStreetMap','Place info: OpenStreetMap')}${vc>1?' · '+L(`${vc-1}번 방문`,`${vc-1} past visits`):''}</div></div></div>`}
+  <div class="src">${p.g?L('장소 정보·리뷰 제공: Google','Place info & reviews: Google'):L('장소 정보: OpenStreetMap','Place info: OpenStreetMap')}${vc>1?' · '+L(`${vc-1}번 방문`,`${vc-1} past visits`):''}</div></div></div>`;hydrate($('#res'))}
 async function share(){const{p}=last,l=links(p),d={title:p.name,text:p.name+(p.addr?' '+p.addr:''),url:l.v||l.g};
   try{if(navigator.share)await navigator.share(d);else{await navigator.clipboard.writeText(d.text+' '+d.url);msg(L('링크를 복사했어요. Tesla 앱에 붙여넣기 하세요.','Link copied — paste it into the Tesla app.'))}}catch{}}
 
 /* ---------- favorites / blacklist / history / review ---------- */
 function favT(id,n){F[id]?delete F[id]:F[id]=n;save()}
 function blkT(id,n){B[id]?delete B[id]:B[id]=n;save()}
-let openRow=null,rvD=null;const ACTW=176;
-function openRv(i){rvOpen=i;openRow=null;rvD={crowd:3,spd:3,svc:3,min:40,time:'12:00',memo:'',...(H[i].rv||{})};render();setTimeout(()=>document.querySelector('.rvf')?.scrollIntoView({behavior:'smooth',block:'center'}),50)}
-function rvSave(i){H[i].rv={time:$('#rv_t').value,crowd:rvD.crowd,spd:rvD.spd,svc:rvD.svc,min:+$('#rv_m').value||0,memo:$('#rv_n').value};rvOpen=null;rvD=null;save();render()}
+/* ---------- photos: compressed and kept in this browser's IndexedDB ---------- */
+const idb=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open('lr_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
+  const tx=async(m,f)=>{const db=await open();return new Promise((ok,no)=>{const t=db.transaction('p',m),q=f(t.objectStore('p'));t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)})};
+  return{put:(k,v)=>tx('readwrite',st=>st.put(v,k)),get:k=>tx('readonly',st=>st.get(k)),del:k=>tx('readwrite',st=>st.delete(k))}})();
+const PHU=new Map(),MAXPH=6;
+async function shrink(file){const url=URL.createObjectURL(file);
+  try{const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+    const sc=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*sc);c.height=Math.round(img.naturalHeight*sc);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);return await new Promise(ok=>c.toBlob(ok,'image/jpeg',.82))}
+  finally{URL.revokeObjectURL(url)}}
+function hydrate(root=document){root.querySelectorAll('img[data-ph]').forEach(async im=>{if(im.getAttribute('src'))return;const id=im.dataset.ph;let u=PHU.get(id);
+  if(!u){try{const b=await idb.get(id);if(!b){im.closest('.th')?.classList.add('gone');return}u=URL.createObjectURL(b);PHU.set(id,u)}catch{return}}im.src=u})}
+function showPh(id){const d=document.createElement('div');d.className='pv';d.innerHTML=`<img data-ph="${id}" alt="">`;d.onclick=()=>d.remove();document.body.appendChild(d);hydrate(d)}
+const thumbs=(ids,rm,big)=>ids&&ids.length?`<div class="thumbs ${big?'big':''}">${ids.map(id=>`<div class="th"><img data-ph="${id}" alt="" onclick="event.stopPropagation();showPh('${id}')">${rm?`<button class="x" aria-label="${L('사진 삭제','Remove photo')}" onclick="rmPh('${id}')">×</button>`:''}</div>`).join('')}</div>`:'';
+const delPhotos=ids=>(ids||[]).forEach(id=>{idb.del(id).catch(()=>{});const u=PHU.get(id);if(u){URL.revokeObjectURL(u);PHU.delete(id)}});
+async function addPh(files,inp){const room=MAXPH-rvD.photos.length;const fs=[...files].slice(0,Math.max(0,room));if(inp)inp.value='';
+  if(!fs.length){if(files.length)alert(L(`사진은 최대 ${MAXPH}장까지 올릴 수 있어요.`,`Up to ${MAXPH} photos per review.`));return}
+  for(const f of fs){try{const b=await shrink(f),id='ph_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);await idb.put(id,b);rvD.photos.push(id);rvD.added.push(id)}
+    catch{alert(L('사진을 불러오지 못했어요.','Could not load that photo.'))}}
+  render()}
+function rmPh(id){rvD.photos=rvD.photos.filter(x=>x!==id);if(rvD.added.includes(id))delPhotos([id]);else rvD.removed.push(id);render()}
+function syncRv(){if(rvOpen==null||!rvD)return;const t=document.getElementById('rv_t'),m=document.getElementById('rv_m'),n=document.getElementById('rv_n');
+  if(t)rvD.time=t.value;if(m)rvD.min=+m.value||0;if(n)rvD.memo=n.value}
+
+let openRow=null,rvD=null;const ACTW=264;
+function openRv(i){if(rvOpen!=null&&rvOpen!==i)rvCancel(1);rvOpen=i;openRow=null;const r=H[i].rv||{};rvD={crowd:3,spd:3,svc:3,min:40,time:'12:00',memo:'',...r,photos:[...(r.photos||[])],added:[],removed:[]};render();setTimeout(()=>document.querySelector('.rvf')?.scrollIntoView({behavior:'smooth',block:'center'}),50)}
+function rvSave(i){syncRv();delPhotos(rvD.removed);H[i].rv={time:rvD.time,crowd:rvD.crowd,spd:rvD.spd,svc:rvD.svc,min:rvD.min,memo:rvD.memo,photos:rvD.photos};rvOpen=null;rvD=null;save();render()}
+function rvCancel(quiet){if(rvD)delPhotos(rvD.added);rvOpen=null;rvD=null;if(!quiet)render()}
+let rvDelAsk=null;
+function rvDel(){const i=rvDelAsk;rvDelAsk=null;if(i!=null&&H[i]&&H[i].rv){delPhotos([...(H[i].rv.photos||[]),...(rvD?rvD.added:[])]);delete H[i].rv;save()}rvOpen=null;rvD=null;render()}
+const rvDelH=()=>rvDelAsk==null||!H[rvDelAsk]?'':`<div class="ov" onclick="rvDelAsk=null;render()"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
+  <p><b>${esc(H[rvDelAsk].name)}</b></p><p class="mut">${L('이 리뷰를 삭제할까요? 첨부한 사진도 함께 삭제돼요. 방문 기록은 남아요.','Delete this review? Its photos will be deleted too. The visit stays in history.')}</p>
+  <div class="acts"><button onclick="rvDelAsk=null;render()">${L('취소','Cancel')}</button><button class="del" onclick="rvDel()">${L('리뷰 삭제','Delete review')}</button></div></div>`;
 const fmtS=v=>(+v).toFixed(v%1?1:0);
 const starW=(k,v)=>`<div class="sw" data-k="${k}" role="slider" aria-valuemin="0.5" aria-valuemax="5" aria-valuenow="${v}"><div class="sbg">★★★★★</div><div class="sfg" style="width:${v/5*100}%">★★★★★</div></div>`;
 const RF=()=>[['crowd',L('붐빔 정도','How crowded'),L('1 한산함 · 5 매우 붐빔','1 empty · 5 packed')],['spd',L('음식 나오는 속도','Food speed'),L('1 느림 · 5 빠름','1 slow · 5 fast')],['svc',L('서비스·친절도','Customer service'),L('1 별로 · 5 최고','1 poor · 5 great')]];
@@ -473,7 +519,10 @@ function formHTML(i){return`<div class="rvf">
   ${RF().map(([k,t,h])=>`<div class="fld"><div class="fl"><label>${t}</label><b><span id="sv_${k}">${fmtS(rvD[k])}</span> / 5</b></div><div class="mut fh">${h}</div>${starW(k,rvD[k])}</div>`).join('')}
   <div class="fld"><label for="rv_m">${L('총 체류 시간','Total time spent')}</label><div class="mins"><input type="number" id="rv_m" inputmode="numeric" min="0" step="5" value="${+rvD.min||40}"><span>${L('분','min')}</span></div></div>
   <div class="fld"><label for="rv_n">${L('메모','Notes')}</label><textarea id="rv_n" rows="3" placeholder="${L('기억해 둘 메뉴나 팁','Dishes or tips to remember')}">${esc(rvD.memo||'')}</textarea></div>
-  <div class="acts"><button class="save" onclick="rvSave(${i})">${L('저장','Save')}</button><button onclick="rvOpen=null;render()">${L('취소','Cancel')}</button></div></div>`}
+  <div class="fld"><label>${L('사진','Photos')} <span class="mut" style="font-weight:400">(${rvD.photos.length}/${MAXPH})</span></label>${thumbs(rvD.photos,1,1)}
+    ${rvD.photos.length<MAXPH?`<div class="phb"><label>${L('사진 보관함','Photo library')}<input type="file" accept="image/*" multiple onchange="addPh(this.files,this)"></label><label>${L('카메라로 찍기','Take photo')}<input type="file" accept="image/*" capture="environment" onchange="addPh(this.files,this)"></label></div>`:''}</div>
+  <div class="acts"><button class="save" onclick="rvSave(${i})">${L('저장','Save')}</button><button onclick="rvCancel()">${L('취소','Cancel')}</button></div>
+  ${H[i].rv?`<div class="acts"><button class="rvdel" onclick="syncRv();rvDelAsk=${i};render()">${L('리뷰 삭제','Delete review')}</button></div>`:''}</div>`}
 const rvLine=r=>[r.time||'',`${L('붐빔','Crowd')} ${fmtS(r.crowd)}`,`${L('속도','Speed')} ${fmtS(r.spd)}`,`${L('서비스','Service')} ${fmtS(r.svc)}`,r.min?r.min+L('분',' min'):''].filter(Boolean).join(' · ');
 let openDays=new Set(),delAsk=null;
 function dayLabel(d){const n=new Date(),dd=Math.round((new Date(n.toDateString())-new Date(d.toDateString()))/864e5);
@@ -481,10 +530,10 @@ function dayLabel(d){const n=new Date(),dd=Math.round((new Date(n.toDateString()
   return dd==0?L('오늘 · ','Today · ')+base:dd==1?L('어제 · ','Yesterday · ')+base:base}
 function togDay(k){openDays.has(k)?openDays.delete(k):openDays.add(k);openRow=null;render()}
 function rowHTML(i){const h=H[i],r=h.rv,tm=new Date(h.ts).toLocaleTimeString(loc_(),{hour:'numeric',minute:'2-digit'}),nm=esc(h.name).replace(/'/g,''),fav=!!F[h.id],ex=!!B[h.id];
-  return`<div class="hi"><div class="hrow"><div class="hact"><button class="a-fav" onclick="favT('${h.id}','${nm}');render()">${fav?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button class="a-ex" onclick="blkT('${h.id}','${nm}');render()">${ex?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button></div>
-    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}<div class="mut">${tm}</div></div>
+  return`<div class="hi"><div class="hrow"><div class="hact"><button class="a-fav" onclick="favT('${h.id}','${nm}');render()">${fav?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button class="a-ex" onclick="blkT('${h.id}','${nm}');render()">${ex?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button><button class="a-info" onclick="openPlace('${h.id}')">${L('가게 기록','Place info')}</button></div>
+    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}<div class="mut">${tm}${visits(h.id)>1?' · '+L(`총 ${visits(h.id)}번 뽑힘`,`picked ${visits(h.id)}×`):''}</div></div>
     <button class="rvb" onclick="openRv(${i})">${r?L('리뷰 수정','Edit review'):L('리뷰 쓰기','Write review')}</button></div>
-    ${r?`<div class="mut hs">${esc(rvLine(r))}${r.memo?'<br>'+esc(r.memo):''}</div>`:''}</div></div>
+    ${r?`<div class="mut hs">${esc(rvLine(r))}${r.memo?'<br>'+esc(r.memo):''}</div>${thumbs(r.photos)}`:''}</div></div>
     ${rvOpen===i&&rvD?formHTML(i):''}</div>`}
 let selDay=null,sel=new Set();
 const dayIdx=k=>H.map((h,i)=>i).filter(i=>new Date(H[i].ts).toDateString()==k);
@@ -492,21 +541,54 @@ function enterSel(k){selDay=k;sel=new Set();openDays.add(k);openRow=null;rvOpen=
 function exitSel(){selDay=null;sel=new Set();render()}
 function togSel(i){sel.has(i)?sel.delete(i):sel.add(i);render()}
 function selAll(){const ids=dayIdx(selDay),all=ids.every(i=>sel.has(i));sel=all?new Set():new Set(ids);render()}
+let hView='date',hq='',placeSheet=null;
+const qOK=name=>!hq.trim()||name.toLowerCase().includes(hq.trim().toLowerCase());
+function aggPlaces(){const m=new Map();H.forEach((h,i)=>{let a=m.get(h.id);if(!a)m.set(h.id,a={id:h.id,name:h.name,la:h.la,lo:h.lo,n:0,last:h.ts,first:h.ts,idx:[]});a.n++;a.last=Math.max(a.last,h.ts);a.first=Math.min(a.first,h.ts);a.idx.push(i)});return[...m.values()]}
+const avgOf=(idx,k)=>{const v=idx.map(i=>H[i].rv&&H[i].rv[k]).filter(x=>x);return v.length?v.reduce((a,b)=>a+b)/v.length:0};
+const shortD=ts=>new Date(ts).toLocaleDateString(loc_(),{month:'short',day:'numeric'});
 function histHTML(){if(!H.length)return`<div class="card mut">${L('아직 기록이 없어요.','No history yet.')}</div>`;
-  const G=[];H.forEach((h,i)=>{const k=new Date(h.ts).toDateString();let g=G.find(x=>x.k==k);if(!g)G.push(g={k,ts:h.ts,items:[]});g.items.push(i)});
-  return G.map(g=>{const sm=selDay===g.k,open=sm||openDays.has(g.k),n=g.items.length,all=sm&&g.items.every(i=>sel.has(i));
+  return`<div class="hbar"><div class="seg">${seg(hView=='date',"hView='date';selDay=null;render()",L('날짜별','By date'))}${seg(hView=='place',"hView='place';selDay=null;render()",L('가게별','By place'))}</div>
+  <input type="search" id="hq" value="${esc(hq)}" placeholder="${L('가게 이름 검색','Search places')}" oninput="hq=this.value;updHist()" autocomplete="off"></div><div id="hbody">${hBody()}</div>`}
+function updHist(){const b=document.getElementById('hbody');if(!b)return;b.innerHTML=hBody();bindGestures();hydrate(b)}
+function hBody(){return hView=='place'?placesHTML():datesHTML()}
+function placesHTML(){const ps=aggPlaces().filter(a=>qOK(a.name)).sort((a,b)=>b.n-a.n||b.last-a.last);
+  if(!ps.length)return`<div class="card mut">${L('검색 결과가 없어요.','No matching places.')}</div>`;
+  return`<div class="card">${ps.map(a=>{const rc=a.idx.filter(i=>H[i].rv).length,fav=!!F[a.id],ex=!!B[a.id];
+    return`<div class="pl" onclick="openPlace('${a.id}')"><div class="pn"><b>${esc(a.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}
+      <div class="mut">${L('마지막 ','Last ')}${shortD(a.last)}${rc?' · '+L(`리뷰 ${rc}개`,`${rc} review${rc>1?'s':''}`):''}</div></div><div class="cnt"><b>${a.n}</b><span>${L('번 뽑힘','picks')}</span></div></div>`}).join('')}</div>
+  <p class="mut hint">${L('많이 뽑힌 순서예요. 가게를 누르면 방문 기록과 내 리뷰를 모아 볼 수 있어요.','Sorted by how often each place was picked. Tap a place to see all its visits and your reviews.')}</p>`}
+function datesHTML(){
+  const G=[];H.forEach((h,i)=>{if(!qOK(h.name))return;const k=new Date(h.ts).toDateString();let g=G.find(x=>x.k==k);if(!g)G.push(g={k,ts:h.ts,items:[]});g.items.push(i)});
+  if(!G.length)return`<div class="card mut">${L('검색 결과가 없어요.','No matching places.')}</div>`;
+  const searching=!!hq.trim();
+  return G.map(g=>{const sm=selDay===g.k,open=sm||searching||openDays.has(g.k),n=g.items.length,all=sm&&g.items.every(i=>sel.has(i));
     const right=sm?`<span class="r"><button class="sa pri" onclick="event.stopPropagation();selAll()">${all?L('선택 해제','Deselect all'):L('전체 선택','Select all')}</button><button class="sa" onclick="event.stopPropagation();exitSel()">${L('완료','Done')}</button></span>`
       :`<span class="mut">${L(n+'곳',n+(n>1?' places':' place'))}<i class="chev">›</i></span>`;
     const rows=sm?g.items.map(i=>`<div class="hsel ${sel.has(i)?'on':''}" onclick="togSel(${i})" role="checkbox" aria-checked="${sel.has(i)}"><span class="ck"></span><div class="hn"><b>${esc(H[i].name)}</b><div class="mut">${new Date(H[i].ts).toLocaleTimeString(loc_(),{hour:'numeric',minute:'2-digit'})}</div></div></div>`).join('')
       :g.items.map(rowHTML).join('');
     return`<div class="card dg"><div class="dh ${open?'on':''}" data-k="${esc(g.k)}" role="button"><span>${esc(dayLabel(new Date(g.ts)))}</span>${right}</div>
     ${open?`<div class="dl">${rows}</div>`:''}</div>`}).join('')
-  +`<p class="mut hint">${L('날짜를 누르면 그날 간 곳이 보여요. 가게를 탭하거나 왼쪽으로 밀면 찜·제외, 꾹 누르면 삭제. 날짜를 꾹 누르면 여러 곳을 골라 삭제할 수 있어요.','Tap a date to see places. Tap or swipe a place for Favorite / Exclude; long-press to remove. Long-press a date to select several to remove.')}</p>`
+  +`<p class="mut hint">${L('날짜를 누르면 그날 간 곳이 보여요. 가게를 탭하거나 왼쪽으로 밀면 찜·제외·가게 기록, 꾹 누르면 삭제. 날짜를 꾹 누르면 여러 곳을 골라 삭제할 수 있어요.','Tap a date to see places. Tap or swipe a place for Favorite / Exclude / Place info; long-press to remove. Long-press a date to select several.')}</p>`
   +(selDay?`<div class="selbar"><span>${L(`${sel.size}개 선택됨`,`${sel.size} selected`)}</span><button class="del" ${sel.size?'':'disabled'} onclick="askDelSel()">${L('삭제','Remove')}</button></div>`:'')}
+function openPlace(id){placeSheet=id;openRow=null;render()}
+function editFromPlace(i){placeSheet=null;hView='date';hq='';openDays.add(new Date(H[i].ts).toDateString());openRv(i)}
+function myRvHTML(idx,editable){const rs=idx.filter(i=>H[i].rv);
+  return rs.map(i=>{const r=H[i].rv;return`<div class="myrv"><div class="d">${new Date(H[i].ts).toLocaleDateString(loc_(),{year:'numeric',month:'short',day:'numeric'})}${r.time?' · '+esc(r.time):''}</div>
+    <div class="mut">${esc(rvLine({...r,time:''}))}</div>${r.memo?`<div style="margin-top:4px">${esc(r.memo)}</div>`:''}${thumbs(r.photos)}
+    ${editable?`<button class="link" onclick="editFromPlace(${i})">${L('리뷰 수정','Edit review')}</button>`:''}</div>`}).join('')}
+const placeH=()=>{const a=aggPlaces().find(x=>x.id==placeSheet);if(!a)return'';const fav=!!F[a.id],ex=!!B[a.id],nm=esc(a.name).replace(/'/g,''),rc=a.idx.filter(i=>H[i].rv).length;
+  const gl=a.id.startsWith('g:')?`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.name)}&query_place_id=${a.id.slice(2)}`:`https://www.google.com/maps/search/?api=1&query=${a.la},${a.lo}`;
+  const av=['crowd','spd','svc'].map(k=>avgOf(a.idx,k));
+  return`<div class="ov" onclick="placeSheet=null;render()"></div><div class="sheet"><div class="grab"></div><h3>${esc(a.name)}</h3>
+  <div class="st3"><div><b>${a.n}</b><span>${L('번 뽑힘','times picked')}</span></div><div><b>${rc}</b><span>${L('내 리뷰','my reviews')}</span></div><div><b>${shortD(a.first)}</b><span>${L('처음 뽑힘','first picked')}</span></div></div>
+  ${rc?`<div class="mut">${L('내 평균','My averages')}: ${L('붐빔','Crowd')} ${fmtS(av[0].toFixed(1))} · ${L('속도','Speed')} ${fmtS(av[1].toFixed(1))} · ${L('서비스','Service')} ${fmtS(av[2].toFixed(1))}</div>`:''}
+  <div class="acts"><button onclick="favT('${a.id}','${nm}');render()" style="${fav?'background:#f08c00;color:#fff;border:0':''}">${fav?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button onclick="blkT('${a.id}','${nm}');render()" style="${ex?'background:#e03131;color:#fff;border:0':''}">${ex?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button><a href="${gl}" target="_blank" rel="noopener">${L('Google 지도','Google Maps')}</a></div>
+  ${rc?`<h4>${L('내 리뷰','My reviews')}</h4>`+myRvHTML(a.idx,1):''}
+  <h4>${L('뽑힌 날짜','Picked on')}</h4><div class="mut">${a.idx.map(i=>new Date(H[i].ts).toLocaleString(loc_(),{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})).join('<br>')}</div></div>`};
 function askDel(i){delAsk=[i];openRow=null;try{navigator.vibrate&&navigator.vibrate(15)}catch{}render()}
 function askDelSel(){if(sel.size){delAsk=[...sel];render()}}
 function doDel(){const ids=(delAsk||[]).filter(i=>H[i]).sort((a,b)=>b-a);delAsk=null;
-  if(ids.length){ids.forEach(i=>H.splice(i,1));rvOpen=null;openRow=null;save()}
+  if(ids.length){ids.forEach(i=>{delPhotos(H[i].rv&&H[i].rv.photos);H.splice(i,1)});rvOpen=null;openRow=null;save()}
   if(selDay){selDay=null;sel=new Set()}render()}
 const delH=()=>{if(!delAsk||!delAsk.length)return'';const xs=delAsk.filter(i=>H[i]),one=xs.length==1;
   return`<div class="ov" onclick="delAsk=null;render()"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
@@ -527,7 +609,7 @@ function bindSwipe(el){const i=+el.dataset.i;let x0,y0,dx=0,drag=null,base=0,lpT
     if(drag){e.preventDefault();dx=Math.min(0,Math.max(-ACTW-24,base+mx));el.style.transform=`translateX(${dx}px)`}},{passive:false});
   el.addEventListener('touchend',e=>{clr();if(lp){e.preventDefault();return}if(!drag)return;el.style.transition='';setOpen(dx<-ACTW/2?i:(openRow===i?null:openRow));if(openRow!==i)el.style.transform=''});
   el.addEventListener('click',e=>{if(lp){lp=false;return}if(e.target.closest('button'))return;setOpen(openRow===i?null:i)})}
-function closeSheets(){sheet=false;locSheet=false;save();render()}
+function closeSheets(){sheet=false;locSheet=false;placeSheet=null;save();render()}
 function bindSheet(sh){const ov=sh.previousElementSibling;let y0,t0,dy=0,drag=false;
   sh.addEventListener('touchstart',e=>{drag=false;if(e.target.closest('input[type=range],.sw'))return;
     if(!e.target.closest('.grab,h3')&&sh.scrollTop>0)return;y0=e.touches[0].clientY;t0=Date.now();dy=0;drag=null},{passive:true});
@@ -598,9 +680,9 @@ ${S.key?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필�
 ${S.inc.length||S.exc.length?`<button class="link" onclick="S.inc=[];S.exc=[];save();render()">${L('음식 종류 선택 초기화','Clear cuisine choices')}</button>`:''}
 <div class="fbar"><button class="reset" onclick="resetF()">${L('초기화','Reset')}</button><button class="primary" onclick="sheet=false;save();render()">${L('적용','Apply')}</button></div></div>`;
 function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,maxP:4,inc:[],exc:[]});save();keepScroll(render)}
-function render(){
+function render(){syncRv();
   const inSet=view=='set';
-  const body=inSet?settingsHTML():S.tab=='hist'?histHTML()+delH()
+  const body=inSet?settingsHTML():S.tab=='hist'?histHTML()+delH()+rvDelH()+(placeSheet?placeH():'')
     :`${S.key?'':`<button class="banner" onclick="view='set';render()">${L('Google API 키를 연결하면 별점·리뷰·사진·지도를 볼 수 있어요 →','Connect a Google API key for ratings, reviews, photos and maps →')}</button>`}
     <div class="hero"><button class="locb" onclick="locSheet=true;render();setTimeout(()=>$('#lsq')?.focus(),60)">${S.place?esc(S.place.n):L('현재 위치','Current location')} ▾</button>
     <div class="mut">${L('오늘 점심은?','What’s for lunch?')}</div><div id="slot">${last?esc(last.p.name):'?'}</div>
@@ -609,7 +691,7 @@ function render(){
   const fab=!inSet&&S.tab=='pick'&&!sheet&&!locSheet?`<button class="ffab ${fabHide?'hide':''}" onclick="sheet=true;render()">${FUNNEL}${L('필터','Filters')}${fCount()?`<span class="n">${fCount()}</span>`:''}</button>`:'';
   $('#app').innerHTML=`<header><h1>${inSet?L('설정','Settings'):L('점심 룰렛','Lunch Roulette')}</h1>${inSet?`<button class="tb" onclick="view='main';render()">${L('완료','Done')}</button>`:`<button class="ib" onclick="view='set';render()" aria-label="${L('설정','Settings')}">${GEAR}</button>`}</header><main>${body}</main>
   ${fab}${inSet?'':`<nav>${[['pick',L('뽑기','Pick')],['hist',L('기록','History')]].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';save();render()">${t[1]}</button>`).join('')}</nav>`}`;
-  document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes()}
+  document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes();hydrate()}
 let fabHide=false,lastY=0;
 window.addEventListener('scroll',()=>{const y=window.scrollY,b=document.querySelector('.ffab');
   if(y<40||y<lastY-6)fabHide=false;else if(y>lastY+6)fabHide=true;lastY=y;if(b)b.classList.toggle('hide',fabHide)},{passive:true});

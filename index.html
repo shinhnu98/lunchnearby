@@ -98,7 +98,8 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .hfront{position:relative;z-index:1;background:var(--card);padding:12px 4px;transition:transform .22s ease;touch-action:pan-y;cursor:pointer}
 .htop{display:flex;justify-content:space-between;align-items:center;gap:10px}.hn{min-width:0}.hn b{font-size:16px}
 .rvb{flex:none;border-color:var(--ac);color:var(--ac);font-weight:700;font-size:14px;padding:8px 14px}
-.b-fav,.b-ex{display:inline-block;font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:2px}.b-fav{background:#f08c00}.b-ex{background:#e03131}
+.b-fav,.b-ex,.b-vis{display:inline-block;font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:2px}.b-fav{background:#f08c00}.b-ex{background:#e03131}.b-vis{background:#2f9e44}.b-vis.now{background:#1c7ed6}
+.asheet .go{background:var(--ac);color:#fff;border:0;font-weight:700}
 .hs{margin-top:6px}.hint{text-align:center;margin:10px 0 0;font-size:13px}
 /* review form */
 .rvf{background:var(--soft);border-radius:14px;padding:14px;margin:4px 0 14px}
@@ -470,7 +471,8 @@ function status(p){if(p.open===true)return{c:'ok',t:L('영업 중','Open now')+(
 /* ---------- main flow ---------- */
 const msg=t=>{const e=$('#msg');if(e)e.textContent=t};
 async function go(){
-  if(busy)return;busy=true;last=null;$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
+  if(busy)return;busy=true;last=null;
+  try{if('Notification' in window&&Notification.permission=='default')Notification.requestPermission().catch(()=>{})}catch{}$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
   try{
     const c=S.place?{latitude:S.place.la,longitude:S.place.lo}:await loc().catch(()=>{throw new Error(L('위치 권한이 필요해요. 위치를 허용하거나 위의 위치 버튼으로 원하는 곳을 검색하세요.','Location permission is needed. Allow it, or search for a place with the location button above.'))});
     if(!S.place)lastC=c;
@@ -521,7 +523,7 @@ const mapSrc=p=>p.g&&MAPKEY?`https://www.google.com/maps/embed/v1/place?key=${en
 function weekHTML(p){if(p.wk&&p.wk.length){const di=(new Date().getDay()+6)%7;return`<ul class="wk">${p.wk.map((x,i)=>`<li class="${i==di?'today':''}">${esc(x)}</li>`).join('')}</ul>`}
   return p.hrs?`<ul class="wk">${p.hrs.split(';').map(x=>`<li>${esc(x.trim())}</li>`).join('')}</ul>`:''}
 function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=visits(p.id),st=status(p),cr=crowd(p);
-  const mine=H.map((h,i)=>i).filter(i=>H[i].id==p.id&&H[i].rv);
+  const mine=H.map((h,i)=>i).filter(i=>H[i].id==p.id&&H[i].rv),hv=H.find(h=>h.id==p.id&&(h.arr||Date.now()-h.ts<V_WIN));
   const web=p.web&&/^https?:\/\//.test(p.web)?p.web:p.web?'https://'+p.web:'';
   const money=m=>{try{return new Intl.NumberFormat(loc_(),{style:'currency',currency:m.currencyCode||'USD',maximumFractionDigits:0}).format(+m.units||0)}catch{return m.units}};
   const pr=[PL[p.pr]?'$'.repeat(PL[p.pr]):'',p.prg?.startPrice?money(p.prg.startPrice)+(p.prg.endPrice?'–'+money(p.prg.endPrice):'+'):''].filter(Boolean).join(' ');
@@ -546,6 +548,7 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
     <div><span class="k">${L('지금','Right now')}</span><span class="v ${st.c}">${esc(st.t)}</span></div>
     <div><span class="k">${L('오늘 영업시간','Today’s hours')}</span><span class="v">${esc(p.today||L('정보 없음','Not available'))}</span>
       ${p.wk||p.hrs?`<br><button class="link" onclick="wkMore=!wkMore;showRes()">${wkMore?L('접기','Hide'):L('요일별 영업시간 보기','See weekly hours')}</button>${wkMore?weekHTML(p):''}`:''}</div>
+    ${hv?`<div><span class="k">${L('방문','Visit')}</span><span class="v ${hv.arr?'ok':''}">${hv.dep?L(`방문 완료 · ${stayMin(hv)}분 머묾`,`Visited · stayed ${stayMin(hv)} min`):hv.arr?L(`지금 이 가게에 있어요 · ${hhmm(hv.arr)} 도착`,`You’re here · arrived ${hhmm(hv.arr)}`):L('도착하면 자동으로 방문으로 기록돼요','Your visit is logged automatically when you arrive')}</span></div>`:''}
     ${cr?`<div><span class="k">${L('혼잡도','How busy')}</span><span class="v">${CL()[cr.lv]}</span><span class="k">${esc(cr.src)}${p.uri?` · <a href="${esc(p.uri)}" target="_blank" rel="noopener">${L('실시간은 Google 지도에서','Live data on Google Maps')}</a>`:''}</span></div>`:''}
   </div>
   ${mine.length?`<h4>${L('내 리뷰','My reviews')} · ${L(`${mine.length}번`,`${mine.length}`)}</h4>`+myRvHTML(mine,0):''}
@@ -569,6 +572,38 @@ function favT(id,n){if(F[id]){delete F[id];bump(id,'fav',-1,n)}else{F[id]=n||nam
 function blkT(id,n){if(B[id]){delete B[id];bump(id,'exc',-1,n)}else{B[id]=n||nameOf(id);bump(id,'exc',1,n)}save()}
 function logVisit(){if(!FB)return;const d=today();if(ld('lr_vday','')===d)return;let vid=ld('lr_vid','');if(!vid){vid=Math.random().toString(36).slice(2,12)+Date.now().toString(36);sv('lr_vid',vid)}
   FB.visit(d,vid,!!user).then(()=>sv('lr_vday',d)).catch(()=>sv('lr_vday',d))}
+/* ---------- visit detection: reach the picked place → visiting, walk away after a while → visited + ask for a review ---------- */
+/* browsers only report location while the page is open, so this works with the app on screen (or on return to it) */
+const V_IN=60,V_OUT=150,V_STAY=5*6e4,V_GONE=6e4,V_WIN=3*36e5,V_MAX=5*36e5;
+let geoW=null;const vOut=new Map();
+function vCand(){const n=Date.now(),seen={};
+  return H.filter(h=>{if(seen[h.id])return false;seen[h.id]=1;return h.la!=null&&!h.dep&&(h.arr?n-h.arr<V_MAX:n-h.ts<V_WIN)})}
+function vWatch(){const on=vCand().length>0;
+  if(on&&geoW==null&&navigator.geolocation)geoW=navigator.geolocation.watchPosition(vPos,()=>{},{enableHighAccuracy:true,maximumAge:30000,timeout:60000});
+  else if(!on&&geoW!=null){navigator.geolocation.clearWatch(geoW);geoW=null;vOut.clear()}}
+function vPos(p){const c=p.coords,n=Date.now();if(c.accuracy>100)return;let ch=false;
+  vCand().forEach(h=>{const d=dist(c.latitude,c.longitude,h.la,h.lo);
+    if(!h.arr){if(d<=V_IN+Math.min(c.accuracy,50)/2){h.arr=n;ch=true}return}
+    if(d<=V_OUT){vOut.delete(h.ts);return}
+    if(!vOut.has(h.ts)){vOut.set(h.ts,n);return}
+    const o=vOut.get(h.ts);if(n-o<V_GONE)return;vOut.delete(h.ts);ch=true;
+    if(o-h.arr>=V_STAY){h.dep=o;h.ask=1;vNotify(h)}else delete h.arr});   /* a quick walk-by doesn't count */
+  if(ch){save();render()}}
+const stayMin=h=>Math.max(1,Math.round(((h.dep||Date.now())-h.arr)/6e4));
+const hhmm=ts=>{const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+function vNotify(h){try{navigator.vibrate&&navigator.vibrate([80,60,80])}catch{}
+  if(!('Notification' in window)||Notification.permission!=='granted')return;
+  const t=L(`${h.name} 방문 완료!`,`Visited ${h.name}`),o={body:L('맛있게 드셨나요? 눌러서 리뷰를 남겨 보세요.','How was it? Tap to leave a review.'),tag:'v'+h.ts};
+  const plain=()=>{try{const x=new Notification(t,o);x.onclick=()=>{window.focus();x.close()}}catch{}};
+  if(navigator.serviceWorker)navigator.serviceWorker.getRegistration().then(r=>r?r.showNotification(t,o):plain()).catch(plain);else plain()}
+function vAsk(i,yes){if(!H[i])return;delete H[i].ask;save();
+  if(!yes){render();return}
+  view='main';S.tab='hist';hView='date';hq='';placeSheet=null;openDays.add(new Date(H[i].ts).toDateString());openRv(i)}
+const vAskH=()=>{if(rvOpen!=null)return'';const i=H.findIndex(h=>h.ask);if(i<0)return'';const h=H[i];
+  return`<div class="ov" onclick="vAsk(${i},0)"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
+  <p><b>✅ ${esc(h.name)}</b></p><p class="mut">${L(`${hhmm(h.arr)}부터 ${stayMin(h)}분 머무르셨어요. 맛있게 드셨나요? 리뷰를 남겨 볼까요?`,`You were here ${stayMin(h)} min from ${hhmm(h.arr)}. How was it? Leave a review?`)}</p>
+  <div class="acts"><button onclick="vAsk(${i},0)">${L('나중에','Later')}</button><button class="go" onclick="vAsk(${i},1)">${L('리뷰 쓰기','Write review')}</button></div></div>`};
+if('serviceWorker' in navigator&&location.protocol=='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 /* ---------- photos: compressed and kept in this browser's IndexedDB ---------- */
 const idb=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open('lr_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
   const tx=async(m,f)=>{const db=await open();return new Promise((ok,no)=>{const t=db.transaction('p',m),q=f(t.objectStore('p'));t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)})};
@@ -600,7 +635,8 @@ function syncRv(){if(rvOpen==null||!rvD)return;const t=document.getElementById('
   if(t)rvD.time=t.value;if(m)rvD.min=+m.value||0;if(n)rvD.memo=n.value}
 
 let openRow=null,rvD=null;const ACTW=264;
-function openRv(i){if(rvOpen!=null&&rvOpen!==i)rvCancel(1);rvOpen=i;openRow=null;const r=H[i].rv||{};rvD={crowd:3,spd:3,svc:3,min:40,time:'12:00',memo:'',...r,photos:[...(r.photos||[])],added:[],removed:[]};render();setTimeout(()=>document.querySelector('.rvf')?.scrollIntoView({behavior:'smooth',block:'center'}),50)}
+function openRv(i){if(rvOpen!=null&&rvOpen!==i)rvCancel(1);rvOpen=i;openRow=null;const r=H[i].rv||{},h=H[i];
+  rvD={crowd:3,spd:3,svc:3,min:40,time:'12:00',memo:'',...(h.arr?{time:hhmm(h.arr),min:stayMin(h)}:{}),...r,photos:[...(r.photos||[])],added:[],removed:[]};render();setTimeout(()=>document.querySelector('.rvf')?.scrollIntoView({behavior:'smooth',block:'center'}),50)}
 function rvSave(i){syncRv();delPhotos(rvD.removed);if(!H[i].rv)bump(H[i].id,'rv',1,H[i].name);H[i].rv={time:rvD.time,crowd:rvD.crowd,spd:rvD.spd,svc:rvD.svc,min:rvD.min,memo:rvD.memo,photos:rvD.photos};rvOpen=null;rvD=null;save();render()}
 function rvCancel(quiet){if(rvD)delPhotos(rvD.added);rvOpen=null;rvD=null;if(!quiet)render()}
 let rvDelAsk=null;
@@ -628,7 +664,7 @@ function dayLabel(d){const n=new Date(),dd=Math.round((new Date(n.toDateString()
 function togDay(k){openDays.has(k)?openDays.delete(k):openDays.add(k);openRow=null;render()}
 function rowHTML(i){const h=H[i],r=h.rv,tm=new Date(h.ts).toLocaleTimeString(loc_(),{hour:'numeric',minute:'2-digit'}),nm=esc(h.name).replace(/'/g,''),fav=!!F[h.id],ex=!!B[h.id];
   return`<div class="hi"><div class="hrow"><div class="hact"><button class="a-fav" onclick="favT('${h.id}','${nm}');render()">${fav?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button class="a-ex" onclick="blkT('${h.id}','${nm}');render()">${ex?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button><button class="a-info" onclick="openPlace('${h.id}')">${L('가게 기록','Place info')}</button></div>
-    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}<div class="mut">${tm}${visits(h.id)>1?' · '+L(`총 ${visits(h.id)}번 뽑힘`,`picked ${visits(h.id)}×`):''}</div></div>
+    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}${h.dep?`<span class="b-vis">${L('방문','Visited')}</span>`:h.arr?`<span class="b-vis now">${L('방문 중','Here now')}</span>`:''}<div class="mut">${tm}${h.dep?' · '+L(`${hhmm(h.arr)}–${hhmm(h.dep)} 머묾`,`stayed ${hhmm(h.arr)}–${hhmm(h.dep)}`):''}${visits(h.id)>1?' · '+L(`총 ${visits(h.id)}번 뽑힘`,`picked ${visits(h.id)}×`):''}</div></div>
     <button class="rvb" onclick="openRv(${i})">${r?L('리뷰 수정','Edit review'):L('리뷰 쓰기','Write review')}</button></div>
     ${r?`<div class="mut hs">${esc(rvLine(r))}${r.memo?'<br>'+esc(r.memo):''}</div>${thumbs(r.photos)}`:''}</div></div>
     ${rvOpen===i&&rvD?formHTML(i):''}</div>`}
@@ -815,7 +851,7 @@ ${MAPKEY?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필
 ${S.inc.length||S.exc.length?`<button class="link" onclick="S.inc=[];S.exc=[];save();render()">${L('음식 종류 선택 초기화','Clear cuisine choices')}</button>`:''}
 <div class="fbar"><button class="reset" onclick="resetF()">${L('초기화','Reset')}</button><button class="primary" onclick="sheet=false;save();render()">${L('적용','Apply')}</button></div></div>`;
 function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,maxP:4,inc:[],exc:[]});save();keepScroll(render)}
-function render(){syncRv();
+function render(){syncRv();vWatch();
   if(view=='home'){$('#app').innerHTML=homeHTML();document.documentElement.lang=S.lang;startReel();return}
   stopReel();
   if(view=='admin'&&!isAdmin())view='set';
@@ -828,7 +864,7 @@ function render(){syncRv();
     </div><div id="res"></div>${sheet?sheetH():''}${locSheet?locSheetH():''}`;
   const fab=!inSet&&S.tab=='pick'&&!sheet&&!locSheet?`<button class="ffab ${fabHide?'hide':''}" onclick="sheet=true;render()">${FUNNEL}${L('필터','Filters')}${fCount()?`<span class="n">${fCount()}</span>`:''}</button>`:'';
   $('#app').innerHTML=`<header><h1 ${inSet?'':`class="hlink" onclick="view='home';render()"`}>${view=='admin'?L('관리자 대시보드','Admin dashboard'):inSet?L('설정','Settings'):L('점심 룰렛','Lunch Roulette')}</h1>${inSet?`<button class="tb" onclick="view=view=='admin'?'set':'main';render()">${L('완료','Done')}</button>`:`<button class="ib" onclick="view='set';render()" aria-label="${L('설정','Settings')}">${GEAR}</button>`}</header><main>${body}</main>
-  ${fab}${inSet?'':`<nav>${[['pick',L('뽑기','Pick')],['hist',L('기록','History')]].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';save();render()">${t[1]}</button>`).join('')}</nav>`}`;
+  ${fab}${inSet?'':`<nav>${[['pick',L('뽑기','Pick')],['hist',L('기록','History')]].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';save();render()">${t[1]}</button>`).join('')}</nav>`}${inSet?'':vAskH()}`;
   document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes();hydrate()}
 /* ---------- accounts ---------- */
 async function migrateGuest(){const gS=ld('lr_s',null),gH=ld('lr_h',[]),gF=ld('lr_f',{}),gB=ld('lr_b',{});

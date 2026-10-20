@@ -23,7 +23,16 @@ h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.01em}
 #slot.flick{opacity:.5}#slot.done{animation:pop .5s;color:var(--ac)}
 @keyframes pop{0%{transform:scale(.8)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
 .spin{width:150px;height:150px;border-radius:50%;border:0;color:#fff;background:conic-gradient(from 200deg,#ff922b,#e8590c,#f03e3e,#ff922b);box-shadow:0 10px 30px rgba(232,89,12,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;margin:14px auto;font-size:18px;transition:transform .15s}
-.spin span{font-size:48px;line-height:1.1}.spin:active{transform:scale(.94)}.spin.busy{animation:rot .8s linear infinite}
+.spin span{font-size:48px;line-height:1.1;display:inline-block}.spin:active{transform:scale(.94)}
+.spin.busy b{display:none}.spin.busy span{font-size:56px;animation:toss 1.05s infinite}
+@keyframes toss{
+ 0%{transform:translateY(0) rotate(0) scale(1);animation-timing-function:ease-out}
+ 8%{transform:translateY(4px) rotate(0) scale(1.12,.86);animation-timing-function:cubic-bezier(.2,.7,.4,1)}
+ 45%{transform:translateY(-105px) rotate(320deg) scale(1);animation-timing-function:cubic-bezier(.6,0,.8,.4)}
+ 72%{transform:translateY(0) rotate(560deg) scale(1.1,.88);animation-timing-function:ease-out}
+ 82%{transform:translateY(-20px) rotate(640deg) scale(1);animation-timing-function:ease-in}
+ 92%{transform:translateY(0) rotate(710deg) scale(1.05,.94);animation-timing-function:ease-out}
+ 100%{transform:translateY(0) rotate(720deg) scale(1)}}
 @keyframes rot{to{transform:rotate(360deg)}}
 #msg{min-height:22px;margin:4px 0}
 .tag{display:inline-block;background:var(--soft);border-radius:8px;padding:3px 10px;font-size:13px;color:var(--fg)}
@@ -109,6 +118,16 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .hfront{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .dlg{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(330px,86vw);background:var(--card);border-radius:18px;padding:20px;z-index:9;box-shadow:0 20px 50px #0005;animation:up .2s}
 .dlg p{margin:0 0 8px}.dlg .del{background:#e03131;color:#fff;border:0}
+.asheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:auto;background:var(--card);border-radius:22px 22px 0 0;padding:16px 20px calc(18px + env(safe-area-inset-bottom));z-index:9;animation:up .25s ease;box-shadow:0 -10px 40px #0004}
+.asheet p{margin:0 0 8px}.asheet .acts button{padding:14px;font-size:15px}.asheet .del,.selbar .del{background:#e03131;color:#fff;border:0;font-weight:700}
+.asheet ul{margin:4px 0 10px;padding-left:18px;font-size:14px;max-height:30vh;overflow:auto}
+.dh{cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.dh .r{display:flex;align-items:center;gap:6px}
+.dh .sa{font-size:13px;font-weight:700;padding:6px 10px;border-radius:8px}.dh .sa.pri{color:var(--ac);border-color:var(--ac)}
+.hsel{display:flex;align-items:center;gap:12px;padding:13px 4px;border-top:1px solid var(--ln);cursor:pointer;-webkit-user-select:none;user-select:none}.hsel:first-child{border:0}
+.ck{width:24px;height:24px;border-radius:50%;border:2px solid var(--mut);flex:none;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s}
+.hsel.on .ck{background:var(--ac);border-color:var(--ac)}.hsel.on .ck::after{content:'';width:6px;height:11px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:translate(0,-1px) rotate(45deg)}
+.selbar{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));width:calc(100% - 24px);max-width:520px;margin:0 auto;z-index:7;display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card);border:1px solid var(--ln);border-radius:16px;padding:10px 10px 10px 16px;box-shadow:0 6px 24px #0003;animation:up .2s}
+.selbar .del:disabled{opacity:.4}
 </style></head><body><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -353,7 +372,7 @@ function status(p){if(p.open===true)return{c:'ok',t:L('영업 중','Open now')+(
 /* ---------- main flow ---------- */
 const msg=t=>{const e=$('#msg');if(e)e.textContent=t};
 async function go(){
-  if(busy)return;busy=true;last=null;$('#res').innerHTML='';msg(S.place?'':L('위치 확인 중…','Getting your location…'));
+  if(busy)return;busy=true;last=null;$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
   try{
     const c=S.place?{latitude:S.place.la,longitude:S.place.lo}:await loc().catch(()=>{throw new Error(L('위치 권한이 필요해요. 위치를 허용하거나 위의 위치 버튼으로 원하는 곳을 검색하세요.','Location permission is needed. Allow it, or search for a place with the location button above.'))});
     if(!S.place)lastC=c;
@@ -365,7 +384,7 @@ async function go(){
       if(seen[p.name]||B[p.id]||p.d>S.radius*1.03)return false;seen[p.name]=1;
       const cs=p.cus||[p.cu];if(S.inc.length&&!cs.some(c=>S.inc.includes(c)))return false;if(cs.some(c=>S.exc.includes(c)))return false;
       if(S.open&&p.open===false)return false;return true});
-    if(!list.length){msg(L('반경 안에 조건에 맞는 음식점이 없어요. 반경을 넓히거나 필터를 줄여보세요.','No matches in range. Widen the radius or relax the filters.'));busy=false;return}
+    if(!list.length){msg(L('반경 안에 조건에 맞는 음식점이 없어요. 반경을 넓히거나 필터를 줄여보세요.','No matches in range. Widen the radius or relax the filters.'));return}
     const cx=ctx(),now=Date.now();
     /* pure random within the radius; only small nudges for favorites / recently visited */
     let sc=list.map(p=>{let s=1;const why=[],mr=myR(p.id);
@@ -380,7 +399,7 @@ async function go(){
         try{x.p=await gDetails(x.p)}catch(e){if(!gErr)gErr=e.message}}
       if((S.open&&x.p.open===false)||(x.p.g&&S.minR&&!(x.p.rt>=S.minR))||(x.p.g&&S.maxP<4&&PL[x.p.pr]>S.maxP)){sc=sc.filter(y=>y!==x);skipped++;continue}
       pick=x;break}
-    if(!pick){msg(L('조건(별점·영업 중)에 맞는 곳을 찾지 못했어요. 다시 뽑거나 조건을 줄여보세요.','Could not find a place matching rating/open filters. Spin again or relax them.'));busy=false;return}
+    if(!pick){msg(L('조건(별점·영업 중)에 맞는 곳을 찾지 못했어요. 다시 뽑거나 조건을 줄여보세요.','Could not find a place matching rating/open filters. Spin again or relax them.'));return}
     cx.forEach(x=>{if(x.re&&x.re.test(pick.p.tx))pick.why.push(L(...x.k))});
     pick.total=list.length;pick.more=!!(pick.p.g&&gpool&&gpool.calls<14);
     msg('');rvMore=false;wkMore=false;await spin(list,pick.p);last=pick;
@@ -388,10 +407,10 @@ async function go(){
     if(gErr)msg(L('Google 일부 오류: ','Google issue: ')+gErr);
     if(pick.p.g&&!pick.p.rs&&S.lang!='en')gSummary(pick.p);
   }catch(e){msg(e.message)}
-  busy=false}
-async function spin(list,p){const el=$('#slot');let d=50;el.classList.remove('done');el.classList.add('flick');$('.spin')?.classList.add('busy');
+  finally{busy=false;$('.spin')?.classList.remove('busy')}}
+async function spin(list,p){const el=$('#slot');let d=50;el.classList.remove('done');el.classList.add('flick');
   for(let i=0;i<18;i++){el.textContent=list[Math.floor(Math.random()*list.length)].name;await sleep(d);d*=1.13}
-  el.classList.remove('flick');$('.spin')?.classList.remove('busy');el.textContent=p.name;void el.offsetWidth;el.classList.add('done')}
+  el.classList.remove('flick');el.textContent=p.name;void el.offsetWidth;el.classList.add('done')}
 
 /* ---------- result ---------- */
 const PL={PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
@@ -466,17 +485,33 @@ function rowHTML(i){const h=H[i],r=h.rv,tm=new Date(h.ts).toLocaleTimeString(loc
     <button class="rvb" onclick="openRv(${i})">${r?L('리뷰 수정','Edit review'):L('리뷰 쓰기','Write review')}</button></div>
     ${r?`<div class="mut hs">${esc(rvLine(r))}${r.memo?'<br>'+esc(r.memo):''}</div>`:''}</div></div>
     ${rvOpen===i&&rvD?formHTML(i):''}</div>`}
+let selDay=null,sel=new Set();
+const dayIdx=k=>H.map((h,i)=>i).filter(i=>new Date(H[i].ts).toDateString()==k);
+function enterSel(k){selDay=k;sel=new Set();openDays.add(k);openRow=null;rvOpen=null;try{navigator.vibrate&&navigator.vibrate(15)}catch{}render()}
+function exitSel(){selDay=null;sel=new Set();render()}
+function togSel(i){sel.has(i)?sel.delete(i):sel.add(i);render()}
+function selAll(){const ids=dayIdx(selDay),all=ids.every(i=>sel.has(i));sel=all?new Set():new Set(ids);render()}
 function histHTML(){if(!H.length)return`<div class="card mut">${L('아직 기록이 없어요.','No history yet.')}</div>`;
   const G=[];H.forEach((h,i)=>{const k=new Date(h.ts).toDateString();let g=G.find(x=>x.k==k);if(!g)G.push(g={k,ts:h.ts,items:[]});g.items.push(i)});
-  return G.map(g=>{const open=openDays.has(g.k),n=g.items.length;
-    return`<div class="card dg"><button class="dh ${open?'on':''}" onclick="togDay('${g.k}')"><span>${esc(dayLabel(new Date(g.ts)))}</span><span class="mut">${L(n+'곳',n+(n>1?' places':' place'))}<i class="chev">›</i></span></button>
-    ${open?`<div class="dl">${g.items.map(rowHTML).join('')}</div>`:''}</div>`}).join('')
-  +`<p class="mut hint">${L('날짜를 누르면 그날 간 곳이 보여요. 가게를 탭하거나 왼쪽으로 밀면 찜·제외, 꾹 누르면 기록 삭제.','Tap a date to see places. Tap or swipe a place for Favorite / Exclude; long-press to remove it.')}</p>`}
-function askDel(i){delAsk=i;openRow=null;try{navigator.vibrate&&navigator.vibrate(15)}catch{}render()}
-function doDel(){const i=delAsk;delAsk=null;if(i!=null&&H[i]){H.splice(i,1);if(rvOpen===i)rvOpen=null;else if(rvOpen>i)rvOpen--;save()}render()}
-const delH=()=>delAsk==null||!H[delAsk]?'':`<div class="ov" onclick="delAsk=null;render()"></div><div class="dlg" role="dialog"><p><b>${esc(H[delAsk].name)}</b> <span class="mut">${esc(new Date(H[delAsk].ts).toLocaleDateString(loc_()))}</span></p>
-  <p class="mut">${L('이 방문 기록을 삭제할까요? 남긴 리뷰도 함께 삭제돼요.','Remove this visit from history? Its review will be removed too.')}</p>
-  <div class="acts"><button onclick="delAsk=null;render()">${L('취소','Cancel')}</button><button class="del" onclick="doDel()">${L('삭제','Remove')}</button></div></div>`;
+  return G.map(g=>{const sm=selDay===g.k,open=sm||openDays.has(g.k),n=g.items.length,all=sm&&g.items.every(i=>sel.has(i));
+    const right=sm?`<span class="r"><button class="sa pri" onclick="event.stopPropagation();selAll()">${all?L('선택 해제','Deselect all'):L('전체 선택','Select all')}</button><button class="sa" onclick="event.stopPropagation();exitSel()">${L('완료','Done')}</button></span>`
+      :`<span class="mut">${L(n+'곳',n+(n>1?' places':' place'))}<i class="chev">›</i></span>`;
+    const rows=sm?g.items.map(i=>`<div class="hsel ${sel.has(i)?'on':''}" onclick="togSel(${i})" role="checkbox" aria-checked="${sel.has(i)}"><span class="ck"></span><div class="hn"><b>${esc(H[i].name)}</b><div class="mut">${new Date(H[i].ts).toLocaleTimeString(loc_(),{hour:'numeric',minute:'2-digit'})}</div></div></div>`).join('')
+      :g.items.map(rowHTML).join('');
+    return`<div class="card dg"><div class="dh ${open?'on':''}" data-k="${esc(g.k)}" role="button"><span>${esc(dayLabel(new Date(g.ts)))}</span>${right}</div>
+    ${open?`<div class="dl">${rows}</div>`:''}</div>`}).join('')
+  +`<p class="mut hint">${L('날짜를 누르면 그날 간 곳이 보여요. 가게를 탭하거나 왼쪽으로 밀면 찜·제외, 꾹 누르면 삭제. 날짜를 꾹 누르면 여러 곳을 골라 삭제할 수 있어요.','Tap a date to see places. Tap or swipe a place for Favorite / Exclude; long-press to remove. Long-press a date to select several to remove.')}</p>`
+  +(selDay?`<div class="selbar"><span>${L(`${sel.size}개 선택됨`,`${sel.size} selected`)}</span><button class="del" ${sel.size?'':'disabled'} onclick="askDelSel()">${L('삭제','Remove')}</button></div>`:'')}
+function askDel(i){delAsk=[i];openRow=null;try{navigator.vibrate&&navigator.vibrate(15)}catch{}render()}
+function askDelSel(){if(sel.size){delAsk=[...sel];render()}}
+function doDel(){const ids=(delAsk||[]).filter(i=>H[i]).sort((a,b)=>b-a);delAsk=null;
+  if(ids.length){ids.forEach(i=>H.splice(i,1));rvOpen=null;openRow=null;save()}
+  if(selDay){selDay=null;sel=new Set()}render()}
+const delH=()=>{if(!delAsk||!delAsk.length)return'';const xs=delAsk.filter(i=>H[i]),one=xs.length==1;
+  return`<div class="ov" onclick="delAsk=null;render()"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
+  ${one?`<p><b>${esc(H[xs[0]].name)}</b> <span class="mut">${esc(new Date(H[xs[0]].ts).toLocaleDateString(loc_()))}</span></p><p class="mut">${L('이 방문 기록을 삭제할까요? 남긴 리뷰도 함께 삭제돼요.','Remove this visit from history? Its review will be removed too.')}</p>`
+  :`<p><b>${L(`${xs.length}개의 방문 기록을 삭제할까요?`,`Remove ${xs.length} visits from history?`)}</b></p><ul>${xs.map(i=>`<li>${esc(H[i].name)}</li>`).join('')}</ul><p class="mut">${L('남긴 리뷰도 함께 삭제돼요.','Their reviews will be removed too.')}</p>`}
+  <div class="acts"><button onclick="delAsk=null;render()">${L('취소','Cancel')}</button><button class="del" onclick="doDel()">${one?L('삭제','Remove'):L(`${xs.length}개 삭제`,`Remove ${xs.length}`)}</button></div></div>`};
 
 /* ---------- gestures: swipe rows, drag-to-close sheets, star sliders ---------- */
 function setOpen(i){openRow=i;document.querySelectorAll('.hfront').forEach(f=>{f.style.transform=+f.dataset.i===openRow?`translateX(-${ACTW}px)`:''})}
@@ -506,7 +541,13 @@ function bindStars(el){const k=el.dataset.k,set=x=>{const r=el.getBoundingClient
   el.addEventListener('click',e=>set(e.clientX));
   el.addEventListener('touchstart',e=>set(e.touches[0].clientX),{passive:true});
   el.addEventListener('touchmove',e=>{e.preventDefault();set(e.touches[0].clientX)},{passive:false})}
-function bindGestures(){document.querySelectorAll('.hfront').forEach(bindSwipe);document.querySelectorAll('.sheet').forEach(bindSheet);document.querySelectorAll('.sw').forEach(bindStars)}
+function bindDay(el){const k=el.dataset.k;let t=null,lp=false,x0=0,y0=0;const clr=()=>{clearTimeout(t);t=null};
+  el.addEventListener('touchstart',e=>{if(e.target.closest('button'))return;lp=false;x0=e.touches[0].clientX;y0=e.touches[0].clientY;clr();t=setTimeout(()=>{t=null;lp=true;enterSel(k)},550)},{passive:true});
+  el.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientX-x0)>8||Math.abs(e.touches[0].clientY-y0)>8)clr()},{passive:true});
+  el.addEventListener('touchend',e=>{clr();if(lp)e.preventDefault()});el.addEventListener('touchcancel',clr);
+  el.addEventListener('contextmenu',e=>{e.preventDefault();if(selDay!==k)enterSel(k)});
+  el.addEventListener('click',e=>{if(lp){lp=false;return}if(e.target.closest('button')||selDay===k)return;togDay(k)})}
+function bindGestures(){document.querySelectorAll('.dh[data-k]').forEach(bindDay);document.querySelectorAll('.hfront').forEach(bindSwipe);document.querySelectorAll('.sheet').forEach(bindSheet);document.querySelectorAll('.sw').forEach(bindStars)}
 const listHTML=(o,fn)=>Object.keys(o).length?Object.entries(o).map(([k,v])=>`<div class="srow"><span>${esc(v)}</span><button onclick="${fn}('${k}','');render()">${L('삭제','Remove')}</button></div>`).join(''):`<div class="mut">${L('없음','None')}</div>`;
 
 /* ---------- settings ---------- */

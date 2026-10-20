@@ -24,13 +24,13 @@ h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.01em}
 @keyframes pop{0%{transform:scale(.8)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
 .spin{width:150px;height:150px;border-radius:50%;border:0;color:#fff;background:conic-gradient(from 200deg,#ff922b,#e8590c,#f03e3e,#ff922b);box-shadow:0 10px 30px rgba(232,89,12,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;margin:14px auto;font-size:18px;transition:transform .15s}
 .spin span{font-size:48px;line-height:1.1;display:inline-block}.spin:active{transform:scale(.94)}
-.spin.busy b{display:none}.spin.busy span{font-size:56px;animation:toss 1.05s infinite}
+.spin{overflow:hidden}.spin.busy b{display:none}.spin.busy span{font-size:52px;animation:toss 1.05s infinite}
 @keyframes toss{
  0%{transform:translateY(0) rotate(0) scale(1);animation-timing-function:ease-out}
- 8%{transform:translateY(4px) rotate(0) scale(1.12,.86);animation-timing-function:cubic-bezier(.2,.7,.4,1)}
- 45%{transform:translateY(-105px) rotate(320deg) scale(1);animation-timing-function:cubic-bezier(.6,0,.8,.4)}
+ 8%{transform:translateY(6px) rotate(0) scale(1.12,.86);animation-timing-function:cubic-bezier(.2,.7,.4,1)}
+ 45%{transform:translateY(-40px) rotate(320deg) scale(1);animation-timing-function:cubic-bezier(.6,0,.8,.4)}
  72%{transform:translateY(0) rotate(560deg) scale(1.1,.88);animation-timing-function:ease-out}
- 82%{transform:translateY(-20px) rotate(640deg) scale(1);animation-timing-function:ease-in}
+ 82%{transform:translateY(-10px) rotate(640deg) scale(1);animation-timing-function:ease-in}
  92%{transform:translateY(0) rotate(710deg) scale(1.05,.94);animation-timing-function:ease-out}
  100%{transform:translateY(0) rotate(720deg) scale(1)}}
 @keyframes rot{to{transform:rotate(360deg)}}
@@ -50,6 +50,7 @@ nav .on{color:var(--ac);font-weight:700}
 input[type=range]{width:100%;accent-color:var(--ac);padding:0;border:0;background:none;height:32px}
 .rr{display:flex;justify-content:space-between;font-size:12px;color:var(--mut)}.rv-now{font-size:22px;font-weight:800;color:var(--ac)}
 .primary{background:var(--ac);color:#fff;border:0;font-weight:700;width:100%;padding:14px;font-size:16px;border-radius:12px;margin-top:20px}
+.fbar{display:flex;gap:10px;margin-top:22px}.fbar button{margin:0;padding:14px;font-size:16px;border-radius:12px;font-weight:700}.fbar .reset{flex:1;background:var(--card)}.fbar .primary{flex:2}
 .li{display:block;width:100%;text-align:left;margin:6px 0;padding:12px;font-size:15px}.li.here{color:var(--ac);font-weight:700}
 input[type=text],input[type=password]{width:100%}
 /* result */
@@ -133,7 +134,7 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const NL=navigator.language||'';
-let S=Object.assign({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,ff:true,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,maxP:4},ld('lr_s',{}));
+let S=Object.assign({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,ff:true,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,maxP:4},ld('lr_s',{}));
 delete S.ff;
 if(!['pick','hist'].includes(S.tab))S.tab='pick';
 let H=ld('lr_h',[]),F=ld('lr_f',{}),B=ld('lr_b',{});
@@ -394,10 +395,10 @@ async function go(){
       return{p,why,s:Math.max(.05,s)}});
     const draw=()=>{let r=Math.random()*sc.reduce((a,b)=>a+b.s,0);for(const x of sc){r-=x.s;if(r<=0)return x}return sc[sc.length-1]};
     let pick=null,skipped=0;
-    for(let tries=0,max=(S.minR||S.open||S.maxP<4)?10:3;tries<max&&sc.length;tries++){const x=draw();
+    for(let tries=0,max=(S.minR||S.minN||S.open||S.maxP<4)?10:3;tries<max&&sc.length;tries++){const x=draw();
       if(x.p.g&&x.p.lite){msg(L('가게 정보 확인 중…','Checking place details…'));
         try{x.p=await gDetails(x.p)}catch(e){if(!gErr)gErr=e.message}}
-      if((S.open&&x.p.open===false)||(x.p.g&&S.minR&&!(x.p.rt>=S.minR))||(x.p.g&&S.maxP<4&&PL[x.p.pr]>S.maxP)){sc=sc.filter(y=>y!==x);skipped++;continue}
+      if((S.open&&x.p.open===false)||(x.p.g&&S.minR&&!(x.p.rt>=S.minR))||(x.p.g&&S.maxP<4&&PL[x.p.pr]>S.maxP)||(x.p.g&&S.minN&&!((x.p.n||0)>=S.minN))){sc=sc.filter(y=>y!==x);skipped++;continue}
       pick=x;break}
     if(!pick){msg(L('조건(별점·영업 중)에 맞는 곳을 찾지 못했어요. 다시 뽑거나 조건을 줄여보세요.','Could not find a place matching rating/open filters. Spin again or relax them.'));return}
     cx.forEach(x=>{if(x.re&&x.re.test(pick.p.tx))pick.why.push(L(...x.k))});
@@ -579,7 +580,7 @@ function keepScroll(f){const sh=document.querySelector('.sheet'),y=sh?sh.scrollT
 function chip(c){const i=S.inc.indexOf(c),x=S.exc.indexOf(c);if(i>=0){S.inc.splice(i,1);S.exc.push(c)}else if(x>=0)S.exc.splice(x,1);else S.inc.push(c);save();keepScroll(render)}
 const pill=(on,fn,t)=>`<button class="pill ${on?'on':''}" onclick="keepScroll(()=>{${fn}})">${t}</button>`;
 const pLab=v=>v>=4?L('가격 상관없음','Any price'):'$'.repeat(v)+' '+L(['저렴한 곳','보통 이하','비싼 곳까지'][v-1],['inexpensive','moderate or less','up to expensive'][v-1]);
-const fCount=()=>(S.minR?1:0)+(S.open?1:0)+(S.maxP<4?1:0)+S.inc.length+S.exc.length;
+const fCount=()=>(S.minR?1:0)+(S.minN?1:0)+(S.open?1:0)+(S.maxP<4?1:0)+S.inc.length+S.exc.length;
 const FUNNEL='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg>';
 const sheetH=()=>`<div class="ov" onclick="sheet=false;save();render()"></div><div class="sheet"><div class="grab"></div><h3>${L('필터','Filters')}</h3>
 <div class="lb">${L('검색 반경','Search radius')}</div><div class="rv-now" id="rlab">${fd(S.radius)}</div>
@@ -590,10 +591,13 @@ const sheetH=()=>`<div class="ov" onclick="sheet=false;save();render()"></div><d
 <div class="rr"><span>$</span><span>$$</span><span>$$$</span><span>${L('전체','Any')}</span></div>
 ${S.key?'':`<div class="mut" style="font-size:12px">${L('가격 필터는 Google API를 연결해야 적용돼요.','The price filter needs a Google API key.')}</div>`}
 ${S.key?`<div class="lb">${L('최소 Google 별점','Minimum Google rating')}</div><div class="pills">${[0,3.5,4,4.3,4.5].map(r=>pill(r==S.minR,`S.minR=${r};save();render()`,r?'★ '+r+'+':L('전체','Any'))).join('')}</div>`:''}
+<div class="lb">${L('최소 리뷰 수','Minimum number of reviews')}</div><div class="pills">${[0,50,100,300,500,1000].map(n=>pill(n==S.minN,`S.minN=${n};save();render()`,n?n.toLocaleString()+L('개 이상','+'):L('전체','Any'))).join('')}</div>
+${S.key?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필터는 Google API를 연결해야 적용돼요.','Rating and review-count filters need a Google API key.')}</div>`}
 <div class="lb">${L('옵션','Options')}</div><div class="pills">${pill(S.open,'S.open=!S.open;save();render()',L('문 닫은 곳 제외','Hide closed places'))}</div>
 <div class="lb">${L('음식 종류 (한 번 탭 = 포함, 두 번 = 제외)','Cuisine (tap once = include, twice = exclude)')}</div>${CG.map(g=>`<div class="cg">${L(g[1],g[2])}</div><div class="pills">${CU.filter(c=>c[4]==g[0]).map(c=>`<button class="pill ${chipCls(c[0])}" onclick="chip('${c[0]}')">${c[3]} ${L(c[1],c[2])}</button>`).join('')}</div>`).join('')}
 ${S.inc.length||S.exc.length?`<button class="link" onclick="S.inc=[];S.exc=[];save();render()">${L('음식 종류 선택 초기화','Clear cuisine choices')}</button>`:''}
-<button class="primary" onclick="sheet=false;save();render()">${L('적용','Apply')}</button></div>`;
+<div class="fbar"><button class="reset" onclick="resetF()">${L('초기화','Reset')}</button><button class="primary" onclick="sheet=false;save();render()">${L('적용','Apply')}</button></div></div>`;
+function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,maxP:4,inc:[],exc:[]});save();keepScroll(render)}
 function render(){
   const inSet=view=='set';
   const body=inSet?settingsHTML():S.tab=='hist'?histHTML()+delH()

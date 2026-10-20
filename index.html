@@ -88,22 +88,39 @@ function oh(s,d=new Date()){
   return any?{open,today}:{}}
 
 /* ---------- data sources (free, no key) ---------- */
-const OV=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+/* 1순위: Overpass(상세 정보) — 여러 서버에 동시에 요청해서 가장 먼저 온 응답 사용 */
+const OV=['https://overpass-api.de/api/interpreter','https://overpass.private.coffee/api/interpreter','https://maps.mail.ru/osm/tools/overpass/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+function tFetch(u,o,ms,ac){const t=setTimeout(()=>ac.abort(new Error('timeout')),ms);return fetch(u,{...o,signal:ac.signal}).finally(()=>clearTimeout(t))}
+async function overpass(la,lo){
+  const ams=S.ff?['restaurant','fast_food','food_court']:['restaurant'];
+  const q=`[out:json][timeout:25];(${ams.map(a=>`nwr["amenity"="${a}"]["name"](around:${S.radius},${la},${lo});`).join('')});out center tags qt 300;`;
+  const acs=OV.map(()=>new AbortController());
+  try{return await Promise.any(OV.map((u,i)=>tFetch(u,{method:'POST',body:'data='+encodeURIComponent(q)},30000,acs[i]).then(async r=>{
+      if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(!j.elements)throw new Error('bad');
+      return j.elements.map(e=>{const t=e.tags||{},c=(t.cuisine||'').replace(/_/g,' ');
+        return{id:'o:'+e.type+e.id,name:(S.lang=='ko'?t['name:ko']:t['name:en'])||t.name,cu:cuO(c+' '+t.name),tx:t.name+' '+c,la:e.lat??e.center?.lat,lo:e.lon??e.center?.lon,
+          hrs:t.opening_hours,ff:t.amenity!='restaurant',addr:[t['addr:housenumber'],t['addr:street']].filter(Boolean).join(' '),
+          tel:t.phone||t['contact:phone'],web:t.website||t['contact:website']}}).filter(p=>p.la&&p.name)})))}
+  finally{acs.forEach(a=>{try{a.abort()}catch{}})}}
+/* 2순위(예비): Photon — 빠르지만 영업시간·음식 종류 정보는 적음 */
+async function photon(la,lo){
+  const ams=S.ff?['restaurant','fast_food','food_court']:['restaurant'],tags=ams.map(a=>'osm_tag=amenity:'+a).join('&'),km=S.radius/1000;
+  const base='https://photon.komoot.io',urls=[`${base}/reverse?lat=${la}&lon=${lo}&radius=${km}&limit=50&${tags}`,`${base}/api/?q=restaurant&lat=${la}&lon=${lo}&limit=50&${tags}`];
+  const res=await Promise.allSettled(urls.map(u=>tFetch(u,{},15000,new AbortController()).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})));
+  const fs=res.filter(r=>r.status=='fulfilled').flatMap(r=>r.value.features||[]);
+  if(!fs.length)throw new Error('photon');
+  const tp={N:'node',W:'way',R:'relation'},seen={};
+  return fs.map(f=>{const p=f.properties||{};return{id:'o:'+(tp[p.osm_type]||p.osm_type)+p.osm_id,name:p.name,cu:cuO(p.name),tx:p.name||'',la:f.geometry.coordinates[1],lo:f.geometry.coordinates[0],ff:p.osm_value!='restaurant',addr:[p.housenumber,p.street].filter(Boolean).join(' ')}})
+    .filter(p=>p.name&&!seen[p.id]&&(seen[p.id]=1))}
 async function oPlaces(la,lo){
   const k=[la.toFixed(3),lo.toFixed(3),S.radius,S.ff,S.lang].join();
   if(cache&&cache.k==k&&Date.now()-cache.t<6e5)return cache.v;
-  const am=S.ff?'restaurant|fast_food|food_court':'restaurant';
-  const q=`[out:json][timeout:25];nwr["amenity"~"^(${am})$"]["name"](around:${S.radius},${la},${lo});out center tags 250;`;
-  let err;
-  for(const u of OV){const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),20000);
-    try{const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),signal:ac.signal});if(!r.ok)throw new Error('HTTP '+r.status);
-      const v=(await r.json()).elements.map(e=>{const t=e.tags||{},c=(t.cuisine||'').replace(/_/g,' ');
-        return{id:'o:'+e.type+e.id,name:(S.lang=='ko'?t['name:ko']:t['name:en'])||t.name,cu:cuO(c+' '+t.name),tx:t.name+' '+c,la:e.lat??e.center?.lat,lo:e.lon??e.center?.lon,
-          hrs:t.opening_hours,ff:t.amenity!='restaurant',addr:[t['addr:housenumber'],t['addr:street']].filter(Boolean).join(' '),
-          tel:t.phone||t['contact:phone'],web:t.website||t['contact:website']}}).filter(p=>p.la&&p.name);
-      cache={k,t:Date.now(),v};return v}
-    catch(e){err=e}finally{clearTimeout(tm)}}
-  throw new Error(L('음식점 데이터 서버가 응답하지 않아요. 잠시 후 다시 시도하세요.','Map data server not responding. Try again shortly.')+(err?` (${err.message})`:''))}
+  const slow=setTimeout(()=>msg(L('🐢 지도 서버가 느려요… 조금만 기다려 주세요','🐢 Map server is slow… hang on')),7000);
+  try{let v;
+    try{v=await overpass(la,lo)}catch{msg(L('🔁 예비 서버로 검색 중…','🔁 Trying backup server…'));v=await photon(la,lo)}
+    cache={k,t:Date.now(),v};return v}
+  catch{throw new Error(L('지도 데이터 서버에 연결하지 못했어요. 네트워크를 확인하고 잠시 후 다시 시도하세요.','Could not reach the map data servers. Check your connection and try again shortly.'))}
+  finally{clearTimeout(slow)}}
 async function weather(la,lo){try{const j=await(await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${la}&longitude=${lo}&current=temperature_2m,weather_code`)).json();return{t:j.current.temperature_2m,c:j.current.weather_code}}catch{return null}}
 
 /* ---------- my own ratings (replaces Google ratings) ---------- */

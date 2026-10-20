@@ -86,7 +86,7 @@ const NL=navigator.language||'';
 let S=Object.assign({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,ff:true,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0},ld('lr_s',{}));
 if(!['pick','hist'].includes(S.tab))S.tab='pick';
 let H=ld('lr_h',[]),F=ld('lr_f',{}),B=ld('lr_b',{});
-let last=null,busy=false,rvOpen=null,W=null,cache=null,gcache=null,rvMore=false,wkMore=false,sheet=false,locSheet=false,view='main',unlocked=false,lastC=null,LS=[],lsT=null,lsN=0,sess=null;
+let last=null,busy=false,rvOpen=null,W=null,cache=null,rvMore=false,wkMore=false,sheet=false,locSheet=false,view='main',unlocked=false,lastC=null,LS=[],lsT=null,lsN=0,sess=null;
 const save=()=>{sv('lr_s',S);sv('lr_h',H);sv('lr_f',F);sv('lr_b',B)};
 const L=(k,e)=>S.lang=='ko'?k:e;
 const loc_=()=>S.lang=='ko'?'ko-KR':'en-US';
@@ -171,28 +171,45 @@ async function weather(la,lo){try{const j=await(await fetch(`https://api.open-me
 /* ---------- Google Places API (New) ---------- */
 const GT={korean:['korean_restaurant'],japanese:['japanese_restaurant','sushi_restaurant','ramen_restaurant'],chinese:['chinese_restaurant'],italian:['italian_restaurant','pizza_restaurant'],american:['american_restaurant','hamburger_restaurant','steak_house','barbecue_restaurant'],thai:['thai_restaurant'],vietnamese:['vietnamese_restaurant'],indian:['indian_restaurant'],mexican:['mexican_restaurant']};
 const AT=[['servesLunch','점심 메뉴','Serves lunch'],['dineIn','매장 식사','Dine-in'],['takeout','포장','Takeout'],['delivery','배달','Delivery'],['reservable','예약 가능','Reservations'],['goodForGroups','단체 가능','Good for groups'],['outdoorSeating','야외 좌석','Outdoor seating'],['servesVegetarianFood','채식 메뉴','Vegetarian options'],['goodForChildren','아이 동반','Kid-friendly']];
-const FM=['id','displayName','types','rating','userRatingCount','currentOpeningHours','regularOpeningHours','reviews','reviewSummary','location','shortFormattedAddress','photos','priceLevel','nationalPhoneNumber','websiteUri','googleMapsUri','editorialSummary',...AT.map(a=>a[0])].map(f=>'places.'+f).join();
+/* Pool: many cheap Nearby Search (Pro) calls at random points inside the radius → every restaurant in range can come up.
+   Details (rating, reviews, hours…) are fetched only for the one that gets picked. */
+const FMP=['id','displayName','types','location','shortFormattedAddress'].map(f=>'places.'+f).join();
+const FMD=['id','displayName','types','rating','userRatingCount','currentOpeningHours','regularOpeningHours','reviews','reviewSummary','location','shortFormattedAddress','photos','priceLevel','nationalPhoneNumber','websiteUri','googleMapsUri','editorialSummary',...AT.map(a=>a[0])].join();
 const gH=fm=>({'Content-Type':'application/json','X-Goog-Api-Key':S.key,...(fm?{'X-Goog-FieldMask':fm}:{})});
 async function gErrMsg(r){let m='';try{m=(await r.json()).error.message}catch{}
   if(r.status==403)m=L('키 제한 설정을 확인하세요 (웹사이트 주소 · Places API (New) 허용)','Check key restrictions (website URL · Places API (New))')+(m?' — '+m:'');
   return 'Google '+r.status+(m?': '+m:'')}
-async function gPlaces(la,lo,fb){
-  const k=[la.toFixed(3),lo.toFixed(3),S.radius,S.ff,S.lang,S.inc.join(),fb,S.key.slice(-6)].join();
-  if(gcache&&gcache.k==k&&Date.now()-gcache.t<6e5)return gcache.v;
-  let t=fb?[]:S.inc.flatMap(c=>GT[c]||[]);if(!t.length)t=['restaurant',...(S.ff?['fast_food_restaurant']:[])];
-  const r=await tFetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:gH(FM),
-    body:JSON.stringify({includedTypes:t,maxResultCount:20,rankPreference:'POPULARITY',languageCode:S.lang,locationRestriction:{circle:{center:{latitude:la,longitude:lo},radius:Math.min(S.radius,50000)}}})},15000,new AbortController());
-  if(!r.ok){if(r.status==400&&!fb&&S.inc.length)return gPlaces(la,lo,1);throw new Error(await gErrMsg(r))}
-  const di=(new Date().getDay()+6)%7;
-  const v=((await r.json()).places||[]).map(p=>{const ty=(p.types||[]).join(' '),nm=p.displayName?.text||'',co=p.currentOpeningHours||{};
-    return{id:'g:'+p.id,pid:p.id,name:nm,cu:cuO(ty+' '+nm),tx:nm+' '+ty+' '+(p.editorialSummary?.text||''),la:p.location.latitude,lo:p.location.longitude,
-      rt:p.rating,n:p.userRatingCount,open:co.openNow,nx:{o:co.nextOpenTime,c:co.nextCloseTime},wk:p.regularOpeningHours?.weekdayDescriptions||co.weekdayDescriptions,
-      today:(p.regularOpeningHours?.weekdayDescriptions||co.weekdayDescriptions)?.[di]?.replace(/^[^:]*:\s*/,''),
-      rv:(p.reviews||[]).map(v=>({a:v.authorAttribution?.displayName,r:v.rating,t:v.text?.text||v.originalText?.text||'',w:v.relativePublishTimeDescription})),
-      rs:p.reviewSummary?.text?.text?{t:p.reviewSummary.text.text,d:p.reviewSummary.disclosureText?.text}:null,
-      addr:p.shortFormattedAddress,ph:p.photos?.[0]?.name,pr:p.priceLevel,tel:p.nationalPhoneNumber,web:p.websiteUri,uri:p.googleMapsUri,sum:p.editorialSummary?.text,
-      at:AT.filter(a=>p[a[0]]===true).map(a=>a[0]),ff:(p.types||[]).includes('fast_food_restaurant'),g:1}}).filter(p=>p.name);
-  gcache={k,t:Date.now(),v};return v}
+const rndPt=(la,lo,R)=>{const r=R*Math.sqrt(Math.random()),th=Math.random()*2*Math.PI;return[la+r*Math.cos(th)/111320,lo+r*Math.sin(th)/(111320*Math.cos(la*Math.PI/180))]};
+async function gNear(la,lo,rad,types,fb){
+  const r=await tFetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:gH(FMP),
+    body:JSON.stringify({includedTypes:fb?['restaurant']:types,maxResultCount:20,rankPreference:'DISTANCE',languageCode:S.lang,locationRestriction:{circle:{center:{latitude:la,longitude:lo},radius:Math.round(Math.min(rad,50000))}}})},15000,new AbortController());
+  if(!r.ok){if(r.status==400&&!fb)return gNear(la,lo,rad,types,1);throw new Error(await gErrMsg(r))}
+  return((await r.json()).places||[]).map(p=>{const ty=(p.types||[]).join(' '),nm=p.displayName?.text||'';
+    return{id:'g:'+p.id,pid:p.id,name:nm,cu:cuO(ty+' '+nm),tx:nm+' '+ty,la:p.location.latitude,lo:p.location.longitude,addr:p.shortFormattedAddress,ff:(p.types||[]).includes('fast_food_restaurant'),g:1,lite:1}}).filter(p=>p.name)}
+let gpool=null;const dcache=new Map();
+async function gPool(la,lo){
+  const k=[la.toFixed(3),lo.toFixed(3),S.radius,S.ff,S.lang,S.inc.join(),S.key.slice(-6)].join();
+  if(!gpool||gpool.k!=k||Date.now()-gpool.t>18e5)gpool={k,t:Date.now(),m:new Map(),calls:0};
+  if(gpool.calls>=14)return[...gpool.m.values()];
+  let t=S.inc.flatMap(c=>GT[c]||[]);if(!t.length)t=['restaurant',...(S.ff?['fast_food_restaurant']:[])];
+  const R=S.radius,rs=Math.max(250,R*.4),first=gpool.calls==0,pts=[];
+  if(first)pts.push([la,lo,Math.min(R,Math.max(250,R*.5))]);
+  while(pts.length<(first?(R<=600?1:4):2)){const[a,b]=rndPt(la,lo,R);pts.push([a,b,rs])}
+  const res=await Promise.allSettled(pts.map(([a,b,r])=>gNear(a,b,r,t)));
+  res.forEach(r=>{if(r.status=='fulfilled')r.value.forEach(p=>{if(!gpool.m.has(p.id))gpool.m.set(p.id,p)})});
+  gpool.calls+=pts.length;
+  if(!gpool.m.size){const e=res.find(r=>r.status=='rejected');if(e)throw e.reason}
+  return[...gpool.m.values()]}
+function gMap(p){const ty=(p.types||[]).join(' '),nm=p.displayName?.text||'',co=p.currentOpeningHours||{},di=(new Date().getDay()+6)%7,wk=p.regularOpeningHours?.weekdayDescriptions||co.weekdayDescriptions;
+  return{id:'g:'+p.id,pid:p.id,name:nm,cu:cuO(ty+' '+nm),tx:nm+' '+ty+' '+(p.editorialSummary?.text||''),la:p.location.latitude,lo:p.location.longitude,
+    rt:p.rating,n:p.userRatingCount,open:co.openNow,nx:{o:co.nextOpenTime,c:co.nextCloseTime},wk,today:wk?.[di]?.replace(/^[^:]*:\s*/,''),
+    rv:(p.reviews||[]).map(v=>({a:v.authorAttribution?.displayName,r:v.rating,t:v.text?.text||v.originalText?.text||'',w:v.relativePublishTimeDescription})),
+    rs:p.reviewSummary?.text?.text?{t:p.reviewSummary.text.text,d:p.reviewSummary.disclosureText?.text}:null,
+    addr:p.shortFormattedAddress,ph:p.photos?.[0]?.name,pr:p.priceLevel,tel:p.nationalPhoneNumber,web:p.websiteUri,uri:p.googleMapsUri,sum:p.editorialSummary?.text,
+    at:AT.filter(a=>p[a[0]]===true).map(a=>a[0]),ff:(p.types||[]).includes('fast_food_restaurant'),g:1}}
+async function gDetails(lite){const c=dcache.get(lite.pid);if(c&&Date.now()-c.t<18e5)return{...c.v,d:lite.d};
+  const r=await tFetch(`https://places.googleapis.com/v1/places/${lite.pid}?languageCode=${S.lang}`,{headers:gH(FMD)},12000,new AbortController());
+  if(!r.ok)throw new Error(await gErrMsg(r));const v=gMap(await r.json());dcache.set(lite.pid,{t:Date.now(),v});return{...v,d:lite.d}}
 /* AI review summaries are English-only in the US → fetch once in English when missing */
 async function gSummary(p){try{const r=await tFetch(`https://places.googleapis.com/v1/places/${p.pid}?languageCode=en`,{headers:gH('reviewSummary')},10000,new AbortController());
   if(!r.ok)return;const j=await r.json();if(j.reviewSummary?.text?.text){p.rs={t:j.reviewSummary.text.text,d:j.reviewSummary.disclosureText?.text};if(last&&last.p===p)showRes()}}catch{}}
@@ -275,30 +292,35 @@ async function go(){
   try{
     const c=S.place?{latitude:S.place.la,longitude:S.place.lo}:await loc().catch(()=>{throw new Error(L('위치 권한이 필요해요. 위치를 허용하거나 위의 위치 버튼으로 원하는 곳을 검색하세요.','Location permission is needed. Allow it, or search for a place with the location button above.'))});
     if(!S.place)lastC=c;
-    msg(L('주변 음식점 찾는 중…','Finding nearby restaurants…'));
+    msg(L('반경 안 음식점 모으는 중…','Collecting restaurants in range…'));
     const wp=weather(c.latitude,c.longitude);let raw=null,gErr='';
-    if(S.key){try{raw=await gPlaces(c.latitude,c.longitude)}catch(e){gErr=e.message;msg(L('Google 오류 — 무료 지도로 검색 중…','Google error — using free map data…'))}}
+    if(S.key){try{raw=await gPool(c.latitude,c.longitude)}catch(e){gErr=e.message;msg(L('Google 오류 — 무료 지도로 검색 중…','Google error — using free map data…'))}}
     if(!raw)raw=await oPlaces(c.latitude,c.longitude);W=await wp;
     const seen={};let list=raw.filter(p=>{p.d=dist(c.latitude,c.longitude,p.la,p.lo);if(!p.g){const o=oh(p.hrs);p.open=o.open;p.today=o.today}
-      if(seen[p.name]||B[p.id]||p.d>S.radius*1.05)return false;seen[p.name]=1;
+      if(seen[p.name]||B[p.id]||p.d>S.radius*1.03)return false;seen[p.name]=1;
       if(S.inc.length&&!S.inc.includes(p.cu))return false;if(S.exc.includes(p.cu))return false;
-      if(S.open&&p.open===false)return false;if(p.g&&S.minR&&!(p.rt>=S.minR))return false;return true});
-    if(!list.length){msg(L('조건에 맞는 음식점이 없어요. 반경을 넓히거나 필터를 줄여보세요.','No matches. Widen the radius or relax the filters.'));busy=false;return}
+      if(S.open&&p.open===false)return false;return true});
+    if(!list.length){msg(L('반경 안에 조건에 맞는 음식점이 없어요. 반경을 넓히거나 필터를 줄여보세요.','No matches in range. Widen the radius or relax the filters.'));busy=false;return}
     const cx=ctx(),now=Date.now();
-    const sc=list.map(p=>{let s=1;const why=[],mr=myR(p.id);
-      if(p.rt)s+=(p.rt-3.5)*.5;
-      if(mr){s+=(mr-3)*.4;why.push(L(`내 평가 ★${mr.toFixed(1)}`,`Your rating ★${mr.toFixed(1)}`))}
-      if(F[p.id]){s+=.8;why.push(L('찜해 둔 맛집이에요','One of your favorites'))}
-      cx.forEach(x=>{if(x.re&&x.re.test(p.tx)){s+=.5;why.push(L(...x.k))}});
-      if(p.open===true)s+=.3;
-      if(H.some(h=>h.id==p.id&&now-h.ts<3*864e5))s-=.5;
-      return{p,why,s:Math.max(.1,s)}});
-    let r=Math.random()*sc.reduce((a,b)=>a+b.s,0),pick=sc[0];for(const x of sc){r-=x.s;if(r<=0){pick=x;break}}
-    const rated=list.filter(x=>x.rt&&(x.n||0)>=10).sort((a,b)=>b.rt-a.rt||(b.n||0)-(a.n||0));
-    pick.rank=rated.indexOf(pick.p)+1;pick.total=list.length;
+    /* pure random within the radius; only small nudges for favorites / recently visited */
+    let sc=list.map(p=>{let s=1;const why=[],mr=myR(p.id);
+      if(mr){s+=(mr-3)*.3;why.push(L(`내 평가 ★${mr.toFixed(1)}`,`Your rating ★${mr.toFixed(1)}`))}
+      if(F[p.id]){s+=.6;why.push(L('찜해 둔 맛집이에요','One of your favorites'))}
+      if(H.some(h=>h.id==p.id&&now-h.ts<3*864e5))s*=.3;
+      return{p,why,s:Math.max(.05,s)}});
+    const draw=()=>{let r=Math.random()*sc.reduce((a,b)=>a+b.s,0);for(const x of sc){r-=x.s;if(r<=0)return x}return sc[sc.length-1]};
+    let pick=null,skipped=0;
+    for(let tries=0,max=(S.minR||S.open)?10:3;tries<max&&sc.length;tries++){const x=draw();
+      if(x.p.g&&x.p.lite){msg(L('가게 정보 확인 중…','Checking place details…'));
+        try{x.p=await gDetails(x.p)}catch(e){if(!gErr)gErr=e.message}}
+      if((S.open&&x.p.open===false)||(x.p.g&&S.minR&&!(x.p.rt>=S.minR))){sc=sc.filter(y=>y!==x);skipped++;continue}
+      pick=x;break}
+    if(!pick){msg(L('조건(별점·영업 중)에 맞는 곳을 찾지 못했어요. 다시 뽑거나 조건을 줄여보세요.','Could not find a place matching rating/open filters. Spin again or relax them.'));busy=false;return}
+    cx.forEach(x=>{if(x.re&&x.re.test(pick.p.tx))pick.why.push(L(...x.k))});
+    pick.total=list.length;pick.more=!!(pick.p.g&&gpool&&gpool.calls<14);
     msg('');rvMore=false;wkMore=false;await spin(list,pick.p);last=pick;
     H.unshift({id:pick.p.id,name:pick.p.name,la:pick.p.la,lo:pick.p.lo,ts:now});H=H.slice(0,100);save();showRes();
-    if(gErr)msg(L('Google 대신 무료 지도 데이터를 썼어요: ','Used free map data instead of Google: ')+gErr);
+    if(gErr)msg(L('Google 일부 오류: ','Google issue: ')+gErr);
     if(pick.p.g&&!pick.p.rs&&S.lang!='en')gSummary(pick.p);
   }catch(e){msg(e.message)}
   busy=false}
@@ -324,7 +346,7 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
   const img=p.ph&&S.key?`<img class="ph" src="https://places.googleapis.com/v1/${p.ph}/media?maxWidthPx=900&key=${encodeURIComponent(S.key)}" alt="" loading="lazy" onerror="this.remove()">`:'';
   const sub=[cuName(p.cu)+(p.ff?L(' · 간편식',' · Quick bite'):''),pr,fd(p.d)].filter(Boolean).join(' · ');
   const rating=p.rt?`★ ${p.rt} <span class="mut">(${(p.n||0).toLocaleString()})</span>`:mr?`★ ${mr.toFixed(1)} <span class="mut">${L('내 평가','your rating')}</span>`:'';
-  const lead=p.rt?(last.rank>0&&last.total>1?L(`근처 후보 ${last.total}곳 중 평점 ${last.rank}위`,`#${last.rank} by rating of ${last.total} nearby options`)+` · ★ ${p.rt} · ${L('리뷰','reviews')} ${(p.n||0).toLocaleString()}${L('개','')}`:`★ ${p.rt} · ${L('리뷰','reviews')} ${(p.n||0).toLocaleString()}${L('개','')}`):'';
+  const lead=L(`반경 ${fd(S.radius)} 안 음식점 ${last.total}곳${last.more?' 이상':''} 중에서 무작위로 뽑았어요`,`Randomly picked from ${last.total}${last.more?'+':''} restaurants within ${fd(S.radius)}`)+(p.rt?`<br>★ ${p.rt} · ${L('리뷰','reviews')} ${(p.n||0).toLocaleString()}${L('개','')}`:'');
   const reasons=[lead?`<p class="lead">${lead}</p>`:'',
     p.rs?`<div class="ai">${esc(p.rs.t)}<div class="disc">${esc(p.rs.d||'Summarized with Gemini')}${p.uri?` · <a href="${esc(p.uri)}" target="_blank" rel="noopener">${L('Google 리뷰 보기','See Google reviews')}</a>`:''}</div></div>`:'',
     hl.length?`<div class="mut" style="margin-top:10px">${L('리뷰에서 칭찬한 점','What reviewers praise')}</div>`+hl.map(h=>`<div class="q">“${esc(h.t)}”<small>${esc(h.a||'')}</small></div>`).join(''):'',
@@ -370,7 +392,7 @@ const listHTML=(o,fn)=>Object.keys(o).length?Object.entries(o).map(([k,v])=>`<di
 /* ---------- settings ---------- */
 function unlock(){const v=($('#pw')?.value||'').trim();if(fnv(v)===PWH){unlocked=true;render()}else{const m=$('#pwm');if(m)m.textContent=L('비밀번호가 틀렸어요.','Wrong password.')}}
 const seg=(on,fn,t)=>`<button class="${on?'on':''}" onclick="${fn}">${t}</button>`;
-function setLang(v){S.lang=v;cache=null;gcache=null;save();render()}
+function setLang(v){S.lang=v;cache=null;gpool=null;save();render()}
 function settingsHTML(){const o=esc(location.origin);
   return`<div class="card"><p class="ct"><b>${L('일반','General')}</b></p>
   <div class="srow"><span>${L('언어','Language')}</span><div class="seg">${seg(S.lang=='ko',"setLang('ko')",'한국어')}${seg(S.lang=='en',"setLang('en')",'English')}</div></div>
@@ -383,8 +405,8 @@ function settingsHTML(){const o=esc(location.origin);
     <li>${L('사용자 인증 정보 → API 키 만들기','Credentials → Create API key')}</li>
     <li>${L(`키 제한: 웹사이트에 <code>${o}/*</code> 등록, API는 위 2개만 허용`,`Restrict the key to <code>${o}/*</code> and the 2 APIs above`)}</li>
     <li>${L('할당량에서 Nearby Search를 하루 50회 정도로 제한하면 요금 걱정이 없어요','Cap Nearby Search at about 50/day in Quotas to avoid charges')}</li></ol>
-    <input type="password" value="${esc(S.key)}" placeholder="AIza…" autocomplete="off" onchange="S.key=this.value.replace(/[^A-Za-z0-9_-]/g,'');gcache=null;save();render()">
-    <div class="acts">${S.key?`<button onclick="S.key='';gcache=null;save();render()">${L('키 삭제','Remove key')}</button>`:''}<button onclick="unlocked=false;render()">${L('잠그기','Lock')}</button></div>
+    <input type="password" value="${esc(S.key)}" placeholder="AIza…" autocomplete="off" onchange="S.key=this.value.replace(/[^A-Za-z0-9_-]/g,'');gpool=null;save();render()">
+    <div class="acts">${S.key?`<button onclick="S.key='';gpool=null;save();render()">${L('키 삭제','Remove key')}</button>`:''}<button onclick="unlocked=false;render()">${L('잠그기','Lock')}</button></div>
     <p class="mut" style="margin-top:10px">${L('키가 없거나 오류가 나면 OpenStreetMap(무료)으로 자동 전환돼요. 키는 이 기기에만 저장돼요.','Without a key, or on errors, the app falls back to OpenStreetMap (free). The key is stored only on this device.')}</p>`}</div>
   <div class="card"><p class="ct"><b>${L('찜한 맛집','Favorites')}</b> <span class="mut">${L('추천 확률이 올라가요','picked more often')}</span></p>${listHTML(F,'favT')}</div>
   <div class="card"><p class="ct"><b>${L('제외 목록','Excluded')}</b></p>${listHTML(B,'blkT')}</div>`}

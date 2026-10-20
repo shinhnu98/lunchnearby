@@ -6,6 +6,7 @@
 :root{--bg:#faf6f0;--fg:#2b2118;--card:#fff;--mut:#7d6f61;--ac:#e8590c;--ln:#eadfd2;--ok:#2f9e44;--no:#d9480f;--soft:#f4ede4}
 @media(prefers-color-scheme:dark){:root{--bg:#1c1712;--fg:#f3ebe2;--card:#272019;--mut:#a99a89;--ac:#ff8a47;--ln:#3b3128;--ok:#51cf66;--no:#ff8a65;--soft:#2f2720}}
 *{box-sizing:border-box}
+body,button,label{word-break:keep-all;overflow-wrap:anywhere}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);-webkit-text-size-adjust:100%}
 #app{max-width:560px;margin:auto;padding:0 16px 100px;min-height:100dvh}
 a{color:var(--ac)}
@@ -34,7 +35,7 @@ nav .on{color:var(--ac);font-weight:700}
 .ov{position:fixed;inset:0;background:#0006;z-index:8}
 .sheet{position:fixed;left:0;right:0;bottom:0;max-width:520px;margin:auto;background:var(--card);border-radius:22px 22px 0 0;padding:12px 20px calc(20px + env(safe-area-inset-bottom));z-index:9;max-height:88dvh;overflow:auto;animation:up .25s}
 @keyframes up{from{transform:translateY(40px);opacity:0}}
-.grab{width:40px;height:4px;border-radius:9px;background:var(--ln);margin:0 auto 12px}.sheet h3{margin:0 0 4px;font-size:18px}
+.grab{width:40px;height:4px;border-radius:9px;background:var(--ln)}.sheet h3{margin:0 0 4px;font-size:18px}
 .lb{font-size:13px;color:var(--mut);margin:18px 0 8px;font-weight:600}
 .pills{display:flex;flex-wrap:wrap;gap:6px}
 .pill{border-radius:99px;padding:7px 14px;font-size:14px}.pill.on,.pill.i{background:var(--ac);color:#fff;border-color:var(--ac)}.pill.x{background:var(--soft);color:var(--mut);text-decoration:line-through}
@@ -78,6 +79,28 @@ textarea{width:100%;font:inherit;color:var(--fg);background:var(--card);border:1
 code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;word-break:break-all}
 .pw{display:flex;gap:8px;margin-top:10px}.pw input{flex:1}.pw button{background:var(--ac);color:#fff;border:0;font-weight:700}
 .banner{display:block;width:100%;border:1px dashed var(--ac);color:var(--ac);background:none;border-radius:12px;padding:10px 12px;margin:0 0 6px;font-size:14px;text-align:left}
+.sheet{touch-action:pan-y}.grab{padding:8px 0;margin:-8px auto 12px;background-clip:content-box;height:20px;width:60px;cursor:grab}
+/* history rows with swipe actions */
+.hi{border-top:1px solid var(--ln)}.hi:first-child{border:0}
+.hrow{position:relative;overflow:hidden;border-radius:12px;margin:6px 0}
+.hact{position:absolute;top:0;right:0;bottom:0;width:176px;display:flex}
+.hact button{flex:1;border:0;border-radius:0;color:#fff;font-weight:700;font-size:14px;padding:0 6px}
+.a-fav{background:#f08c00}.a-ex{background:#e03131}
+.hfront{position:relative;z-index:1;background:var(--card);padding:12px 4px;transition:transform .22s ease;touch-action:pan-y;cursor:pointer}
+.htop{display:flex;justify-content:space-between;align-items:center;gap:10px}.hn{min-width:0}.hn b{font-size:16px}
+.rvb{flex:none;border-color:var(--ac);color:var(--ac);font-weight:700;font-size:14px;padding:8px 14px}
+.b-fav,.b-ex{display:inline-block;font-size:11px;font-weight:700;color:#fff;border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:2px}.b-fav{background:#f08c00}.b-ex{background:#e03131}
+.hs{margin-top:6px}.hint{text-align:center;margin:10px 0 0;font-size:13px}
+/* review form */
+.rvf{background:var(--soft);border-radius:14px;padding:14px;margin:4px 0 14px}
+.fld{margin-bottom:16px}.fld label{display:block;font-size:14px;font-weight:700;margin-bottom:6px}
+.fl{display:flex;justify-content:space-between;align-items:baseline}.fl label{margin:0}.fl b{color:var(--ac);font-size:15px}
+.fh{font-size:12px;margin:2px 0 6px}
+.fld input[type=time],.fld textarea{width:100%;background:var(--card)}
+.sw{position:relative;display:inline-block;font-size:38px;line-height:1;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:none}
+.sbg{color:var(--ln)}.sfg{position:absolute;left:0;top:0;overflow:hidden;white-space:nowrap;color:var(--ac);pointer-events:none}
+.mins{display:flex;align-items:center;gap:8px}.mins input{width:110px;background:var(--card)}
+.rvf .acts button.save{background:var(--ac);color:#fff;border:0}
 </style></head><body><div id="app"></div>
 <script>
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -252,7 +275,8 @@ const locSheetH=()=>`<div class="ov" onclick="locSheet=false;render()"></div><di
 <div id="lsr">${recentHTML()}</div></div>`;
 
 /* ---------- my ratings / context ---------- */
-const myR=id=>{const r=H.filter(h=>h.id==id&&h.rv).map(h=>h.rv.star);return r.length?r.reduce((a,b)=>a+b)/r.length:0};
+const rvScore=rv=>rv.star??(((rv.svc||0)+(rv.spd||0))/2);
+const myR=id=>{const r=H.filter(h=>h.id==id&&h.rv).map(h=>rvScore(h.rv));return r.length?r.reduce((a,b)=>a+b)/r.length:0};
 const visits=id=>H.filter(h=>h.id==id).length;
 const MON={1:/국밥|탕|샤브|전골|라멘|stew|hot ?pot/i,2:/국밥|탕|샤브|전골|ramen|stew/i,3:/비빔밥|나물|냉이|salad|샐러드/i,4:/비빔밥|나물|도다리|salad|샐러드/i,5:/쌈|비빔|salad|샐러드|bbq|grill/i,6:/냉면|콩국수|소바|soba|salad/i,7:/삼계탕|냉면|막국수|장어|soba|sushi/i,8:/삼계탕|냉면|물회|장어|sushi|pho/i,9:/전어|꽃게|해산물|seafood|crab|생선/i,10:/전어|대하|버섯|해산물|seafood|mushroom/i,11:/굴|전골|국밥|곰탕|샤브|oyster|hot ?pot|stew/i,12:/굴|전골|국밥|샤브|곰탕|훠궈|hot ?pot|stew|oyster/i};
 const R={rain:['비 오는 날 어울리는 따뜻한 국물 메뉴가 있어요','Warm, soupy food for a rainy day'],cold:['쌀쌀한 날씨에 맞는 따뜻한 메뉴예요','Something warming for a chilly day'],hot:['더운 날씨에 맞는 시원하고 가벼운 메뉴예요','Cool, light food for a hot day'],fri:['금요일엔 든든하게','Hearty pick for a Friday'],mon:['월요일엔 가볍게','A lighter pick for Monday']};
@@ -364,7 +388,7 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
   <h4>${L('추천 이유','Why this pick')}</h4>${reasons||`<p class="mut">${L('이 근처에서 무작위로 골랐어요.','Picked at random from nearby options.')}</p>`}
   ${rvs.length?`<h4>${L('Google 리뷰','Google reviews')}</h4>`+shown.map(v=>`<div class="rv"><span class="st">${'★'.repeat(Math.round(v.r||0))}</span> <b>${esc(v.a)}</b> <span class="m">${esc(v.w||'')}</span><div>${esc(rvMore||v.t.length<=200?v.t:v.t.slice(0,200)+'…')}</div></div>`).join('')
     +(long?`<button class="link" onclick="rvMore=!rvMore;showRes()">${rvMore?L('리뷰 접기','Show less'):L(`리뷰 ${rvs.length}개 전체 보기`,`Show all ${rvs.length} reviews`)}</button>`:''):''}
-  ${notes.length?`<h4>${L('내 메모','My notes')}</h4>`+notes.map(h=>`<div class="rv"><span class="st">${'★'.repeat(h.rv.star)}</span> <span class="m">${new Date(h.ts).toLocaleDateString(loc_())}</span><div>${esc(h.rv.memo)}</div></div>`).join(''):''}
+  ${notes.length?`<h4>${L('내 메모','My notes')}</h4>`+notes.map(h=>`<div class="rv"><span class="st">${'★'.repeat(Math.round(rvScore(h.rv)))}</span> <span class="m">${new Date(h.ts).toLocaleDateString(loc_())}</span><div>${esc(h.rv.memo)}</div></div>`).join(''):''}
   <iframe class="mapf" src="${esc(mapSrc(p))}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
   <div class="btns"><a href="${l.g}" target="_blank" rel="noopener">Google ${L('지도','Maps')}</a><a href="${l.a}" target="_blank" rel="noopener">Apple ${L('지도','Maps')}</a><button onclick="share()">${L('Tesla로 보내기','Send to Tesla')}</button></div>
   ${p.tel||web?`<div class="acts">${p.tel?`<a href="tel:${esc(p.tel.split(';')[0].replace(/[^\d+]/g,''))}">${L('전화하기','Call')}</a>`:''}${web?`<a href="${esc(web)}" target="_blank" rel="noopener">${L('웹사이트','Website')}</a>`:''}</div>`:''}
@@ -376,17 +400,52 @@ async function share(){const{p}=last,l=links(p),d={title:p.name,text:p.name+(p.a
 /* ---------- favorites / blacklist / history / review ---------- */
 function favT(id,n){F[id]?delete F[id]:F[id]=n;save()}
 function blkT(id,n){B[id]?delete B[id]:B[id]=n;save()}
-function rvSave(i){const g=k=>$('#rv_'+k).value;H[i].rv={time:g('t'),crowd:+g('c'),svc:+g('s'),spd:+g('p'),min:+g('m'),star:+g('o'),memo:g('n')};rvOpen=null;save();render()}
-const sel=(id,v)=>`<select id="rv_${id}">${[1,2,3,4,5].map(i=>`<option ${i==(v||3)?'selected':''}>${i}</option>`).join('')}</select>`;
-function histHTML(){return H.length?H.map((h,i)=>{const r=h.rv,dt=new Date(h.ts).toLocaleDateString(loc_()),nm=esc(h.name).replace(/'/g,'');
-  return`<div class="h"><b>${esc(h.name)}</b> <span class="mut">${dt}${F[h.id]?L(' · 찜',' · Favorite'):''}${B[h.id]?L(' · 제외',' · Excluded'):''}</span>
-  ${r?`<div class="mut">★ ${r.star} · ${r.time||'-'} · ${L('붐빔','Crowd')} ${r.crowd}/5 · ${L('서비스','Service')} ${r.svc}/5 · ${L('음식 속도','Speed')} ${r.spd}/5 · ${r.min}${L('분',' min')}${r.memo?'<br>'+esc(r.memo):''}</div>`:''}
-  <div class="acts"><button onclick="rvOpen=${i};render()">${r?L('리뷰 수정','Edit review'):L('리뷰 쓰기','Write review')}</button><button onclick="favT('${h.id}','${nm}');render()">${F[h.id]?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button onclick="blkT('${h.id}','${nm}');render()">${B[h.id]?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button></div>
-  ${rvOpen===i?`<div class="card" style="margin-top:10px"><div class="row"><label>${L('방문 시각','Visit time')}</label><input type="time" id="rv_t" value="${r?.time||'12:00'}"></div>
-  <div class="row"><label>${L('붐빔 (1 한산 ~ 5 매우)','Crowd (1 empty – 5 packed)')}</label>${sel('c',r?.crowd)}<label>${L('서비스','Service')}</label>${sel('s',r?.svc)}</div>
-  <div class="row"><label>${L('음식 속도 (1 느림 ~ 5 빠름)','Food speed (1 slow – 5 fast)')}</label>${sel('p',r?.spd)}<label>${L('총 체류(분)','Total minutes')}</label><input type="number" id="rv_m" value="${r?.min||40}" style="width:80px"></div>
-  <div class="row"><label>${L('총평','Overall')}</label>${sel('o',r?.star)}</div><textarea id="rv_n" rows="2" placeholder="${L('메모','Notes')}">${esc(r?.memo||'')}</textarea>
-  <div class="acts"><button onclick="rvSave(${i})">${L('저장','Save')}</button><button onclick="rvOpen=null;render()">${L('취소','Cancel')}</button></div></div>`:''}</div>`}).join(''):`<div class="mut">${L('아직 기록이 없어요.','No history yet.')}</div>`}
+let openRow=null,rvD=null;const ACTW=176;
+function openRv(i){rvOpen=i;openRow=null;rvD={crowd:3,spd:3,svc:3,min:40,time:'12:00',memo:'',...(H[i].rv||{})};render();setTimeout(()=>document.querySelector('.rvf')?.scrollIntoView({behavior:'smooth',block:'center'}),50)}
+function rvSave(i){H[i].rv={time:$('#rv_t').value,crowd:rvD.crowd,spd:rvD.spd,svc:rvD.svc,min:+$('#rv_m').value||0,memo:$('#rv_n').value};rvOpen=null;rvD=null;save();render()}
+const fmtS=v=>(+v).toFixed(v%1?1:0);
+const starW=(k,v)=>`<div class="sw" data-k="${k}" role="slider" aria-valuemin="0.5" aria-valuemax="5" aria-valuenow="${v}"><div class="sbg">★★★★★</div><div class="sfg" style="width:${v/5*100}%">★★★★★</div></div>`;
+const RF=()=>[['crowd',L('붐빔 정도','How crowded'),L('1 한산함 · 5 매우 붐빔','1 empty · 5 packed')],['spd',L('음식 나오는 속도','Food speed'),L('1 느림 · 5 빠름','1 slow · 5 fast')],['svc',L('서비스·친절도','Customer service'),L('1 별로 · 5 최고','1 poor · 5 great')]];
+function formHTML(i){return`<div class="rvf">
+  <div class="fld"><label for="rv_t">${L('방문 시각','Visit time')}</label><input type="time" id="rv_t" value="${esc(rvD.time||'12:00')}"></div>
+  ${RF().map(([k,t,h])=>`<div class="fld"><div class="fl"><label>${t}</label><b><span id="sv_${k}">${fmtS(rvD[k])}</span> / 5</b></div><div class="mut fh">${h}</div>${starW(k,rvD[k])}</div>`).join('')}
+  <div class="fld"><label for="rv_m">${L('총 체류 시간','Total time spent')}</label><div class="mins"><input type="number" id="rv_m" inputmode="numeric" min="0" step="5" value="${+rvD.min||40}"><span>${L('분','min')}</span></div></div>
+  <div class="fld"><label for="rv_n">${L('메모','Notes')}</label><textarea id="rv_n" rows="3" placeholder="${L('기억해 둘 메뉴나 팁','Dishes or tips to remember')}">${esc(rvD.memo||'')}</textarea></div>
+  <div class="acts"><button class="save" onclick="rvSave(${i})">${L('저장','Save')}</button><button onclick="rvOpen=null;render()">${L('취소','Cancel')}</button></div></div>`}
+const rvLine=r=>[r.time||'',`${L('붐빔','Crowd')} ${fmtS(r.crowd)}`,`${L('속도','Speed')} ${fmtS(r.spd)}`,`${L('서비스','Service')} ${fmtS(r.svc)}`,r.min?r.min+L('분',' min'):''].filter(Boolean).join(' · ');
+function histHTML(){if(!H.length)return`<div class="mut">${L('아직 기록이 없어요.','No history yet.')}</div>`;
+  return H.map((h,i)=>{const r=h.rv,dt=new Date(h.ts).toLocaleDateString(loc_()),nm=esc(h.name).replace(/'/g,''),fav=!!F[h.id],ex=!!B[h.id];
+  return`<div class="hi"><div class="hrow"><div class="hact"><button class="a-fav" onclick="favT('${h.id}','${nm}');render()">${fav?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button class="a-ex" onclick="blkT('${h.id}','${nm}');render()">${ex?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button></div>
+    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}<div class="mut">${dt}</div></div>
+    <button class="rvb" onclick="openRv(${i})">${r?L('리뷰 수정','Edit review'):L('리뷰 쓰기','Write review')}</button></div>
+    ${r?`<div class="mut hs">${esc(rvLine(r))}${r.memo?'<br>'+esc(r.memo):''}</div>`:''}</div></div>
+    ${rvOpen===i&&rvD?formHTML(i):''}</div>`}).join('')+`<p class="mut hint">${L('가게를 탭하거나 왼쪽으로 밀면 찜·제외 버튼이 나와요','Tap a place or swipe left for Favorite and Exclude')}</p>`}
+
+/* ---------- gestures: swipe rows, drag-to-close sheets, star sliders ---------- */
+function setOpen(i){openRow=i;document.querySelectorAll('.hfront').forEach(f=>{f.style.transform=+f.dataset.i===openRow?`translateX(-${ACTW}px)`:''})}
+function bindSwipe(el){const i=+el.dataset.i;let x0,y0,dx=0,drag=null,base=0;
+  el.addEventListener('touchstart',e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;base=openRow===i?-ACTW:0;dx=base;drag=null},{passive:true});
+  el.addEventListener('touchmove',e=>{const mx=e.touches[0].clientX-x0,my=e.touches[0].clientY-y0;
+    if(drag===null){if(Math.abs(mx)>8&&Math.abs(mx)>Math.abs(my)){drag=true;el.style.transition='none'}else if(Math.abs(my)>8)drag=false}
+    if(drag){e.preventDefault();dx=Math.min(0,Math.max(-ACTW-24,base+mx));el.style.transform=`translateX(${dx}px)`}},{passive:false});
+  el.addEventListener('touchend',()=>{if(!drag)return;el.style.transition='';setOpen(dx<-ACTW/2?i:(openRow===i?null:openRow));if(openRow!==i)el.style.transform=''});
+  el.addEventListener('click',e=>{if(e.target.closest('button'))return;setOpen(openRow===i?null:i)})}
+function closeSheets(){sheet=false;locSheet=false;save();render()}
+function bindSheet(sh){const ov=sh.previousElementSibling;let y0,t0,dy=0,drag=false;
+  sh.addEventListener('touchstart',e=>{drag=false;if(e.target.closest('input[type=range],.sw'))return;
+    if(!e.target.closest('.grab,h3')&&sh.scrollTop>0)return;y0=e.touches[0].clientY;t0=Date.now();dy=0;drag=null},{passive:true});
+  sh.addEventListener('touchmove',e=>{if(drag===false)return;const d=e.touches[0].clientY-y0;
+    if(drag===null){if(d>6){drag=true;sh.style.transition='none';sh.style.animation='none'}else if(d<-6){drag=false;return}else return}
+    e.preventDefault();dy=Math.max(0,d);sh.style.transform=`translateY(${dy}px)`;if(ov)ov.style.opacity=String(Math.max(0,1-dy/450))},{passive:false});
+  sh.addEventListener('touchend',()=>{if(!drag){drag=false;return}drag=false;const v=dy/Math.max(1,Date.now()-t0);sh.style.transition='transform .22s ease';
+    if(dy>110||v>.6){sh.style.transform='translateY(110%)';if(ov){ov.style.transition='opacity .22s';ov.style.opacity='0'}setTimeout(closeSheets,210)}
+    else{sh.style.transform='';if(ov)ov.style.opacity=''}})}
+function bindStars(el){const k=el.dataset.k,set=x=>{const r=el.getBoundingClientRect();const v=Math.min(5,Math.max(.5,Math.ceil((x-r.left)/r.width*10)/2));
+    rvD[k]=v;el.querySelector('.sfg').style.width=v/5*100+'%';el.setAttribute('aria-valuenow',v);const t=$('#sv_'+k);if(t)t.textContent=fmtS(v)};
+  el.addEventListener('click',e=>set(e.clientX));
+  el.addEventListener('touchstart',e=>set(e.touches[0].clientX),{passive:true});
+  el.addEventListener('touchmove',e=>{e.preventDefault();set(e.touches[0].clientX)},{passive:false})}
+function bindGestures(){document.querySelectorAll('.hfront').forEach(bindSwipe);document.querySelectorAll('.sheet').forEach(bindSheet);document.querySelectorAll('.sw').forEach(bindStars)}
 const listHTML=(o,fn)=>Object.keys(o).length?Object.entries(o).map(([k,v])=>`<div class="srow"><span>${esc(v)}</span><button onclick="${fn}('${k}','');render()">${L('삭제','Remove')}</button></div>`).join(''):`<div class="mut">${L('없음','None')}</div>`;
 
 /* ---------- settings ---------- */
@@ -435,6 +494,6 @@ function render(){
     <div class="sumrow">${sum()}</div></div><div id="res"></div>${sheet?sheetH():''}${locSheet?locSheetH():''}`;
   $('#app').innerHTML=`<header><h1>${inSet?L('설정','Settings'):L('점심 룰렛','Lunch Roulette')}</h1>${inSet?`<button class="tb" onclick="view='main';render()">${L('완료','Done')}</button>`:`<button class="ib" onclick="view='set';render()" aria-label="${L('설정','Settings')}">${GEAR}</button>`}</header><main>${body}</main>
   ${inSet?'':`<nav>${[['pick',L('뽑기','Pick')],['hist',L('기록','History')]].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';save();render()">${t[1]}</button>`).join('')}</nav>`}`;
-  document.documentElement.lang=S.lang;if(!inSet&&S.tab=='pick')showRes()}
+  document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes()}
 render();
 </script></body></html>

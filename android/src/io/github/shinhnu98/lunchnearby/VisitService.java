@@ -86,12 +86,12 @@ public class VisitService extends Service implements LocationListener {
     }
 
     private void notifyVisit(JSONObject o) {
-        boolean k = ko(this);
+        boolean k = ko(this), ask = o.optInt("q") == 1;
         String n = o.optString("name");
         Notification nt = new Notification.Builder(this, "visit")
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle(k ? n + " 방문 완료!" : "Visited " + n)
-                .setContentText(k ? "맛있게 드셨나요? 눌러서 리뷰를 남겨 보세요." : "How was it? Tap to leave a review.")
+                .setContentTitle(ask ? (k ? n + "에 방문하셨나요?" : "Did you visit " + n + "?") : (k ? n + " 방문 완료!" : "Visited " + n))
+                .setContentText(ask ? (k ? "눌러서 방문했는지 알려 주세요." : "Tap to let us know.") : (k ? "맛있게 드셨나요? 눌러서 리뷰를 남겨 보세요." : "How was it? Tap to leave a review."))
                 .setAutoCancel(true)
                 .setContentIntent(open(this, 2))
                 .build();

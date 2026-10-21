@@ -517,7 +517,7 @@ async function go(){
     cx.forEach(x=>{if(x.re&&x.re.test(pick.p.tx))pick.why.push(L(...x.k))});
     pick.total=list.length;pick.more=!!(pick.p.g&&gpool&&gpool.calls<14);
     msg('');rvMore=false;wkMore=false;await spin(list,pick.p);last=pick;
-    H.unshift({id:pick.p.id,name:pick.p.name,la:pick.p.la,lo:pick.p.lo,ts:now});H=H.slice(0,300);save();showRes();
+    vNewPick(now);H.unshift({id:pick.p.id,name:pick.p.name,la:pick.p.la,lo:pick.p.lo,ts:now});H=H.slice(0,300);save();showRes();
     bump(pick.p.id,'pick',1,pick.p.name);if(user&&FB)FB.touchUser(user.uid,{},1).catch(()=>{});
     if(gErr)msg(L('Google 일부 오류: ','Google issue: ')+gErr);
     if(pick.p.g&&!pick.p.rs&&S.lang!='en')gSummary(pick.p);
@@ -537,7 +537,7 @@ const mapSrc=p=>p.g&&MAPKEY?`https://www.google.com/maps/embed/v1/place?key=${en
 function weekHTML(p){if(p.wk&&p.wk.length){const di=(new Date().getDay()+6)%7;return`<ul class="wk">${p.wk.map((x,i)=>`<li class="${i==di?'today':''}">${esc(x)}</li>`).join('')}</ul>`}
   return p.hrs?`<ul class="wk">${p.hrs.split(';').map(x=>`<li>${esc(x.trim())}</li>`).join('')}</ul>`:''}
 function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=visits(p.id),st=status(p),cr=crowd(p);
-  const mine=H.map((h,i)=>i).filter(i=>H[i].id==p.id&&H[i].rv),hv=H.find(h=>h.id==p.id&&(h.arr||Date.now()-h.ts<V_WIN));
+  const mine=H.map((h,i)=>i).filter(i=>H[i].id==p.id&&H[i].rv),hv=H.find(h=>h.id==p.id&&!h.no&&(h.arr||vCand().includes(h)));
   const web=p.web&&/^https?:\/\//.test(p.web)?p.web:p.web?'https://'+p.web:'';
   const money=m=>{try{return new Intl.NumberFormat(loc_(),{style:'currency',currency:m.currencyCode||'USD',maximumFractionDigits:0}).format(+m.units||0)}catch{return m.units}};
   const pr=[PL[p.pr]?'$'.repeat(PL[p.pr]):'',p.prg?.startPrice?money(p.prg.startPrice)+(p.prg.endPrice?'–'+money(p.prg.endPrice):'+'):''].filter(Boolean).join(' ');
@@ -562,7 +562,7 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
     <div><span class="k">${L('지금','Right now')}</span><span class="v ${st.c}">${esc(st.t)}</span></div>
     <div><span class="k">${L('오늘 영업시간','Today’s hours')}</span><span class="v">${esc(p.today||L('정보 없음','Not available'))}</span>
       ${p.wk||p.hrs?`<br><button class="link" onclick="wkMore=!wkMore;showRes()">${wkMore?L('접기','Hide'):L('요일별 영업시간 보기','See weekly hours')}</button>${wkMore?weekHTML(p):''}`:''}</div>
-    ${hv?`<div><span class="k">${L('방문','Visit')}</span><span class="v ${hv.arr?'ok':''}">${hv.dep?L(`방문 완료 · ${stayMin(hv)}분 머묾`,`Visited · stayed ${stayMin(hv)} min`):hv.arr?L(`지금 이 가게에 있어요 · ${hhmm(hv.arr)} 도착`,`You’re here · arrived ${hhmm(hv.arr)}`):L('도착하면 자동으로 방문으로 기록돼요','Your visit is logged automatically when you arrive')}</span></div>`:''}
+    ${hv?`<div><span class="k">${L('방문','Visit')}</span><span class="v ${hv.arr?'ok':''}">${hv.cf?L('방문하셨는지 확인해 주세요','Please confirm this visit'):hv.dep?L(`방문 완료 · ${stayMin(hv)}분 머묾`,`Visited · stayed ${stayMin(hv)} min`):hv.arr?L(`지금 이 가게에 있어요 · ${hhmm(hv.arr)} 도착`,`You’re here · arrived ${hhmm(hv.arr)}`):L('도착하면 자동으로 방문으로 기록돼요','Your visit is logged automatically when you arrive')}</span></div>`:''}
     ${cr?`<div><span class="k">${L('혼잡도','How busy')}</span><span class="v">${CL()[cr.lv]}</span><span class="k">${esc(cr.src)}${p.uri?` · <a href="${esc(p.uri)}" target="_blank" rel="noopener">${L('실시간은 Google 지도에서','Live data on Google Maps')}</a>`:''}</span></div>`:''}
   </div>
   ${mine.length?`<h4>${L('내 리뷰','My reviews')} · ${L(`${mine.length}번`,`${mine.length}`)}</h4>`+myRvHTML(mine,0):''}
@@ -586,18 +586,30 @@ function favT(id,n){if(F[id]){delete F[id];bump(id,'fav',-1,n)}else{F[id]=n||nam
 function blkT(id,n){if(B[id]){delete B[id];bump(id,'exc',-1,n)}else{B[id]=n||nameOf(id);bump(id,'exc',1,n)}save()}
 function logVisit(){if(!FB)return;const d=today();if(ld('lr_vday','')===d)return;let vid=ld('lr_vid','');if(!vid){vid=Math.random().toString(36).slice(2,12)+Date.now().toString(36);sv('lr_vid',vid)}
   FB.visit(d,vid,!!user).then(()=>sv('lr_vday',d)).catch(()=>sv('lr_vday',d))}
-/* ---------- visit detection: reach the picked place → visiting, walk away after a while → visited + ask for a review ---------- */
-/* browsers only report location while the page is open, so this works with the app on screen (or on return to it) */
-const V_IN=60,V_OUT=150,V_STAY=5*6e4,V_GONE=6e4,V_WIN=3*36e5,V_MAX=5*36e5;
+/* ---------- visit detection ----------
+   Every place that comes up while spinning joins one "spin session". Reaching any of them and walking away after a while = visited
+   (+ ask for a review). That ends the session: the next spin starts a fresh list. For a while after that first visit the other places
+   from the same session are still watched, and a visit to one of them is only suggested ("Did you visit …?").
+   Browsers only report location while the page is open; the Android app does the same natively in the background. */
+const V_IN=60,V_OUT=150,V_STAY=5*6e4,V_GONE=6e4,V_WIN=3*36e5,V_MAX=5*36e5,V_AFTER=2*36e5;
 let geoW=null;const vOut=new Map();
-function vCand(){const n=Date.now(),seen={};
-  return H.filter(h=>{if(seen[h.id])return false;seen[h.id]=1;return h.la!=null&&!h.dep&&(h.arr?n-h.arr<V_MAX:n-h.ts<V_WIN)})}
-/* in the Android app the phone tracks visits natively (also in the background): read its results, hand it the picks to watch */
+/* until when the session's places are watched (0 = session over) */
+function vUntil(){const s=S.vsess;if(!s)return 0;if(s.dep)return s.dep+V_AFTER;
+  const ts=H.filter(h=>h.ts>=s.t0).map(h=>h.ts);return ts.length?Math.max(...ts)+V_WIN:0}
+function vNewPick(t){if(!S.vsess||S.vsess.dep||Date.now()>=vUntil())S.vsess={t0:t,dep:0}}
+function vCand(){const s=S.vsess,n=Date.now(),u=vUntil(),seen={};if(!s)return[];
+  return H.filter(h=>{if(h.ts<s.t0||seen[h.id])return false;seen[h.id]=1;
+    return h.la!=null&&!h.dep&&!h.no&&(h.arr?n-h.arr<V_MAX:n<u)})}
+/* walked out after a real stay: the first one of the session is a visit, later ones need a yes/no */
+function vLeft(h,arr,dep){h.arr=arr;h.dep=dep;const s=S.vsess;
+  if(s&&s.dep&&s.vts!==h.ts)h.cf=1;else{h.ask=1;if(s){s.dep=dep;s.vts=h.ts}}}
+/* in the Android app the phone tracks visits natively (also in the background): read its results, hand it the places to watch */
 function vApp(){let ch=false;
-  try{JSON.parse(APP.state()).forEach(s=>{const h=H.find(x=>x.ts==s.ts);if(!h||h.dep)return;
-    if(s.dep){h.arr=s.arr;h.dep=s.dep;h.ask=1;ch=true}else if((s.arr||undefined)!==h.arr){if(s.arr)h.arr=s.arr;else delete h.arr;ch=true}})}catch{}
+  try{JSON.parse(APP.state()).sort((a,b)=>(a.dep||9e15)-(b.dep||9e15)).forEach(s=>{const h=H.find(x=>x.ts==s.ts);if(!h||h.dep||h.no)return;
+    if(s.dep){vLeft(h,s.arr,s.dep);ch=true}else if((s.arr||undefined)!==h.arr){if(s.arr)h.arr=s.arr;else delete h.arr;ch=true}})}catch{}
   if(ch)save();
-  try{APP.track(JSON.stringify(vCand().map(h=>({ts:h.ts,la:h.la,lo:h.lo,name:h.name,arr:h.arr||0}))),S.lang)}catch{}}
+  const q=S.vsess&&S.vsess.dep?1:0,exp=vUntil();
+  try{APP.track(JSON.stringify(vCand().map(h=>({ts:h.ts,la:h.la,lo:h.lo,name:h.name,arr:h.arr||0,q,exp}))),S.lang)}catch{}}
 function vWatch(){if(APP)return vApp();const on=vCand().length>0;
   if(on&&geoW==null&&navigator.geolocation)geoW=navigator.geolocation.watchPosition(vPos,()=>{},{enableHighAccuracy:true,maximumAge:30000,timeout:60000});
   else if(!on&&geoW!=null){navigator.geolocation.clearWatch(geoW);geoW=null;vOut.clear()}}
@@ -607,19 +619,27 @@ function vPos(p){const c=p.coords,n=Date.now();if(c.accuracy>100)return;let ch=f
     if(d<=V_OUT){vOut.delete(h.ts);return}
     if(!vOut.has(h.ts)){vOut.set(h.ts,n);return}
     const o=vOut.get(h.ts);if(n-o<V_GONE)return;vOut.delete(h.ts);ch=true;
-    if(o-h.arr>=V_STAY){h.dep=o;h.ask=1;vNotify(h)}else delete h.arr});   /* a quick walk-by doesn't count */
+    if(o-h.arr>=V_STAY){vLeft(h,h.arr,o);vNotify(h)}else delete h.arr});   /* a quick walk-by doesn't count */
   if(ch){save();render()}}
 const stayMin=h=>Math.max(1,Math.round(((h.dep||Date.now())-h.arr)/6e4));
 const hhmm=ts=>{const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
 function vNotify(h){try{navigator.vibrate&&navigator.vibrate([80,60,80])}catch{}
   if(!('Notification' in window)||Notification.permission!=='granted')return;
-  const t=L(`${h.name} 방문 완료!`,`Visited ${h.name}`),o={body:L('맛있게 드셨나요? 눌러서 리뷰를 남겨 보세요.','How was it? Tap to leave a review.'),tag:'v'+h.ts};
+  const t=h.cf?L(`${h.name}에 방문하셨나요?`,`Did you visit ${h.name}?`):L(`${h.name} 방문 완료!`,`Visited ${h.name}`),
+    o={body:h.cf?L('눌러서 방문했는지 알려 주세요.','Tap to let us know.'):L('맛있게 드셨나요? 눌러서 리뷰를 남겨 보세요.','How was it? Tap to leave a review.'),tag:'v'+h.ts};
   const plain=()=>{try{const x=new Notification(t,o);x.onclick=()=>{window.focus();x.close()}}catch{}};
   if(navigator.serviceWorker)navigator.serviceWorker.getRegistration().then(r=>r?r.showNotification(t,o):plain()).catch(plain);else plain()}
 function vAsk(i,yes){if(!H[i])return;delete H[i].ask;save();
   if(!yes){render();return}
   view='main';S.tab='hist';hView='date';hq='';placeSheet=null;openDays.add(new Date(H[i].ts).toDateString());openRv(i)}
-const vAskH=()=>{if(rvOpen!=null)return'';const i=H.findIndex(h=>h.ask);if(i<0)return'';const h=H[i];
+/* "Did you visit …?" answered: yes → a normal visit (then the review prompt), no → forget it */
+function vConfirm(i,yes){const h=H[i];if(!h)return;delete h.cf;
+  if(yes)h.ask=1;else{delete h.arr;delete h.dep;h.no=1}save();render()}
+const vAskH=()=>{if(rvOpen!=null)return'';let i=H.findIndex(h=>h.cf);
+  if(i>=0){const h=H[i];return`<div class="ov"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
+    <p><b>📍 ${L(`${esc(h.name)}에 방문하셨나요?`,`Did you visit ${esc(h.name)}?`)}</b></p><p class="mut">${L(`${hhmm(h.arr)}부터 ${stayMin(h)}분 정도 이 근처에 계셨어요.`,`You were around here for about ${stayMin(h)} min from ${hhmm(h.arr)}.`)}</p>
+    <div class="acts"><button onclick="vConfirm(${i},0)">${L('아니요','No')}</button><button class="go" onclick="vConfirm(${i},1)">${L('네, 방문했어요','Yes, I did')}</button></div></div>`}
+  i=H.findIndex(h=>h.ask);if(i<0)return'';const h=H[i];
   return`<div class="ov" onclick="vAsk(${i},0)"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
   <p><b>✅ ${esc(h.name)}</b></p><p class="mut">${L(`${hhmm(h.arr)}부터 ${stayMin(h)}분 머무르셨어요. 맛있게 드셨나요? 리뷰를 남겨 볼까요?`,`You were here ${stayMin(h)} min from ${hhmm(h.arr)}. How was it? Leave a review?`)}</p>
   <div class="acts"><button onclick="vAsk(${i},0)">${L('나중에','Later')}</button><button class="go" onclick="vAsk(${i},1)">${L('리뷰 쓰기','Write review')}</button></div></div>`};
@@ -684,7 +704,7 @@ function dayLabel(d){const n=new Date(),dd=Math.round((new Date(n.toDateString()
 function togDay(k){openDays.has(k)?openDays.delete(k):openDays.add(k);openRow=null;render()}
 function rowHTML(i){const h=H[i],r=h.rv,tm=new Date(h.ts).toLocaleTimeString(loc_(),{hour:'numeric',minute:'2-digit'}),nm=esc(h.name).replace(/'/g,''),fav=!!F[h.id],ex=!!B[h.id];
   return`<div class="hi"><div class="hrow"><div class="hact"><button class="a-fav" onclick="favT('${h.id}','${nm}');render()">${fav?L('찜 해제','Unfavorite'):L('찜하기','Favorite')}</button><button class="a-ex" onclick="blkT('${h.id}','${nm}');render()">${ex?L('제외 해제','Undo exclude'):L('제외','Exclude')}</button><button class="a-info" onclick="openPlace('${h.id}')">${L('가게 기록','Place info')}</button></div>
-    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}${h.dep?`<span class="b-vis">${L('방문','Visited')}</span>`:h.arr?`<span class="b-vis now">${L('방문 중','Here now')}</span>`:''}<div class="mut">${tm}${h.dep?' · '+L(`${hhmm(h.arr)}–${hhmm(h.dep)} 머묾`,`stayed ${hhmm(h.arr)}–${hhmm(h.dep)}`):''}${visits(h.id)>1?' · '+L(`총 ${visits(h.id)}번 뽑힘`,`picked ${visits(h.id)}×`):''}</div></div>
+    <div class="hfront" data-i="${i}" style="${openRow===i?`transform:translateX(-${ACTW}px)`:''}"><div class="htop"><div class="hn"><b>${esc(h.name)}</b>${fav?`<span class="b-fav">${L('찜','Fav')}</span>`:''}${ex?`<span class="b-ex">${L('제외','Excluded')}</span>`:''}${h.dep&&!h.cf?`<span class="b-vis">${L('방문','Visited')}</span>`:h.arr?`<span class="b-vis now">${L('방문 중','Here now')}</span>`:''}<div class="mut">${tm}${h.dep&&!h.cf?' · '+L(`${hhmm(h.arr)}–${hhmm(h.dep)} 머묾`,`stayed ${hhmm(h.arr)}–${hhmm(h.dep)}`):''}${visits(h.id)>1?' · '+L(`총 ${visits(h.id)}번 뽑힘`,`picked ${visits(h.id)}×`):''}</div></div>
     <button class="rvb" onclick="openRv(${i})">${r?L('리뷰 수정','Edit review'):L('리뷰 쓰기','Write review')}</button></div>
     ${r?`<div class="mut hs">${esc(rvLine(r))}${r.memo?'<br>'+esc(r.memo):''}</div>${thumbs(r.photos)}`:''}</div></div>
     ${rvOpen===i&&rvD?formHTML(i):''}</div>`}

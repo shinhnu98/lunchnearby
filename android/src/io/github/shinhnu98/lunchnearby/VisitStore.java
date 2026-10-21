@@ -13,12 +13,13 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Visit state for picked restaurants, kept in SharedPreferences so it survives the app being closed.
- * Same rules as the web page: within IN m = arrived; after STAY+ minutes, OUT+ m away for GONE = visited.
+ * Visit state for the places from the current spin session, kept in SharedPreferences so it survives the app being closed.
+ * Same rules as the web page: within IN m = arrived; after STAY+ minutes, OUT+ m away for GONE = left.
+ * The first place left is a visit; after that the others are only suggested ("q": ask "did you visit?") until AFTER has passed.
  */
 final class VisitStore {
     static final double IN = 60, OUT = 150;
-    static final long STAY = 5 * 60_000L, GONE = 60_000L, WIN = 3 * 3_600_000L, MAX = 5 * 3_600_000L, KEEP = 24 * 3_600_000L;
+    static final long STAY = 5 * 60_000L, GONE = 60_000L, WIN = 3 * 3_600_000L, MAX = 5 * 3_600_000L, AFTER = 2 * 3_600_000L, KEEP = 24 * 3_600_000L;
 
     private VisitStore() {}
 
@@ -60,6 +61,8 @@ final class VisitStore {
                 o.put("la", x.getDouble("la"));
                 o.put("lo", x.getDouble("lo"));
                 o.put("name", x.optString("name", ""));
+                o.put("exp", x.optLong("exp", 0));
+                if (x.optInt("q") == 1) o.put("q", 1);
                 now.put(k, o);
             }
             /* finished visits stay a day so the page can still pick them up */
@@ -90,8 +93,8 @@ final class VisitStore {
 
     private static boolean live(JSONObject o, long t) {
         if (o.optLong("dep") > 0) return false;
-        long arr = o.optLong("arr");
-        return arr > 0 ? t - arr < MAX : t - o.optLong("ts") < WIN;
+        long arr = o.optLong("arr"), exp = o.optLong("exp");
+        return arr > 0 ? t - arr < MAX : exp > 0 ? t < exp : t - o.optLong("ts") < WIN;
     }
 
     /** Picks still being watched (not visited yet, not expired). */
@@ -117,8 +120,9 @@ final class VisitStore {
         long now = System.currentTimeMillis();
         float[] d = new float[1];
         try {
-            for (Iterator<String> it = t.keys(); it.hasNext(); ) {
-                JSONObject o = t.getJSONObject(it.next());
+            List<JSONObject> all = new ArrayList<>();
+            for (Iterator<String> it = t.keys(); it.hasNext(); ) all.add(t.getJSONObject(it.next()));
+            for (JSONObject o : all) {
                 if (!live(o, now)) continue;
                 Location.distanceBetween(la, lo, o.getDouble("la"), o.getDouble("lo"), d);
                 long arr = o.optLong("arr");
@@ -137,6 +141,12 @@ final class VisitStore {
                     if (out - arr >= STAY) {
                         o.put("dep", out);
                         ch.visited.add(o);
+                        if (o.optInt("q") == 0) /* first visit of the session: the rest become "did you visit?" */
+                            for (JSONObject x : all)
+                                if (x != o && x.optLong("dep") == 0) {
+                                    x.put("q", 1);
+                                    x.put("exp", out + AFTER);
+                                }
                     } else {
                         o.put("arr", 0); /* a quick walk-by doesn't count */
                     }

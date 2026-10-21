@@ -5,17 +5,29 @@
 #   android-all.jar  — org.robolectric:android-all:14-robolectric-10818077 (Android 14 framework, from Maven Central)
 #   dx.jar           — com.jakewharton.android.repackaged:dalvik-dx:16.0.1 (Maven Central)
 #   apksig.jar       — com.android.tools.build:apksig:2.3.0 (Maven Central)
+# Google sign-in in the app: set GOOGLE_APP_CLIENT_ID / GOOGLE_APP_CLIENT_SECRET (Desktop OAuth client).
 # Signing key: $KEYSTORE (PKCS12, alias "lunch", password $KEYPASS); created on first run if missing.
 # Keep the same keystore for later builds, or phones will refuse to install the update over the old app.
 set -euo pipefail
 cd "$(dirname "$0")"
 : "${TOOLS:?set TOOLS to the folder with aapt2, android-all.jar, dx.jar, apksig.jar}"
 KEYSTORE=${KEYSTORE:-lunch.p12} KEYPASS=${KEYPASS:-lunchroulette}
-VERSION_CODE=${VERSION_CODE:-2} VERSION_NAME=${VERSION_NAME:-1.1}
+VERSION_CODE=${VERSION_CODE:-3} VERSION_NAME=${VERSION_NAME:-1.2}
 OUT=${OUT:-build/LunchRoulette.apk}
 B=build; rm -rf $B; mkdir -p $B/assets/www $B/classes $B/signer
 
 cp ../index.html $B/assets/www/
+# app sign-in client (Desktop OAuth client) goes only into the APK, never into the repo
+if [ -n "${GOOGLE_APP_CLIENT_ID:-}" ]; then
+  python3 - $B/assets/www/index.html <<'PY'
+import os, sys
+p = sys.argv[1]; s = open(p, encoding='utf-8').read()
+old = 'window.GOOGLE_APP_CLIENT={id:"",secret:""};'
+assert old in s, 'GOOGLE_APP_CLIENT placeholder not found in index.html'
+new = 'window.GOOGLE_APP_CLIENT={id:"%s",secret:"%s"};' % (os.environ['GOOGLE_APP_CLIENT_ID'], os.environ.get('GOOGLE_APP_CLIENT_SECRET', ''))
+open(p, 'w', encoding='utf-8').write(s.replace(old, new))
+PY
+else echo "note: GOOGLE_APP_CLIENT_ID not set — Google sign-in in the app will be off"; fi
 "$TOOLS/aapt2" compile --dir res -o $B/res.zip
 "$TOOLS/aapt2" link -o $B/unsigned.apk -I "$TOOLS/android-all.jar" --manifest AndroidManifest.xml \
   --min-sdk-version 29 --target-sdk-version 34 --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" \

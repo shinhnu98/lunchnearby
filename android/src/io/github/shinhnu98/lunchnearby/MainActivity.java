@@ -24,6 +24,8 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -96,7 +98,45 @@ public class MainActivity extends Activity {
     @Override protected void onResume() {
         super.onResume();
         lastTrack = ""; /* re-check the background service on every return */
+        js("window.appShow&&appShow()");
         refresh();
+    }
+
+    @Override protected void onPause() {
+        js("window.appHide&&appHide()");
+        super.onPause();
+    }
+
+    private void js(String code) {
+        if (web != null) web.evaluateJavascript(code, null);
+    }
+
+    /** Google's sign-in page in a Chrome Custom Tab (plain browser if Chrome isn't there) */
+    void openTab(Uri u) {
+        final Intent i = new Intent(Intent.ACTION_VIEW, u);
+        Bundle b = new Bundle();
+        b.putBinder("android.support.customtabs.extra.SESSION", null);
+        i.putExtras(b);
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                try {
+                    startActivity(i);
+                } catch (ActivityNotFoundException e) {
+                    js("window.appLoginErr&&appLoginErr('no browser')");
+                }
+            }
+        });
+    }
+
+    private void loginDone(final String token, final String err) {
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                /* bring the app back over the sign-in tab (singleTask clears the tab above us) */
+                startActivity(new Intent(MainActivity.this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                js(token != null ? "window.appLogin&&appLogin(" + JSONObject.quote(token) + ")"
+                        : "window.appLoginErr&&appLoginErr(" + JSONObject.quote(err) + ")");
+            }
+        });
     }
 
     @Override protected void onDestroy() {
@@ -243,6 +283,14 @@ public class MainActivity extends Activity {
                 @Override public void run() {
                     if (VisitStore.active(MainActivity.this).isEmpty()) VisitService.sync(MainActivity.this);
                     else startTracking();
+                }
+            });
+        }
+
+        @JavascriptInterface public void googleLogin(String clientId, String secret) {
+            GoogleLogin.start(MainActivity.this, clientId, secret, new GoogleLogin.Done() {
+                @Override public void done(String idToken, String error) {
+                    loginDone(idToken, error);
                 }
             });
         }

@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 : "${TOOLS:?set TOOLS to the folder with aapt2, android-all.jar, dx.jar, apksig.jar}"
 KEYSTORE=${KEYSTORE:-lunch.p12} KEYPASS=${KEYPASS:-lunchroulette}
-VERSION_CODE=${VERSION_CODE:-1} VERSION_NAME=${VERSION_NAME:-1.0}
+VERSION_CODE=${VERSION_CODE:-2} VERSION_NAME=${VERSION_NAME:-1.1}
 OUT=${OUT:-build/LunchRoulette.apk}
 B=build; rm -rf $B; mkdir -p $B/assets/www $B/classes $B/signer
 

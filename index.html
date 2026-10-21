@@ -180,6 +180,14 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .bars{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:6px}.bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
 .bar i{display:block;width:100%;min-height:3px;background:var(--ac);border-radius:6px 6px 2px 2px}.bv{font-size:12px;font-weight:700}.bd{font-size:11px;color:var(--mut)}
 .adm{border-color:var(--ac)}
+/* onboarding */
+.obs{font-size:13px;font-weight:800;letter-spacing:.08em;opacity:.85;margin-bottom:6px}
+.obt{font-size:28px;font-weight:900;margin:0 0 6px;letter-spacing:-.02em;text-shadow:0 4px 18px #0003}
+.obc{background:var(--card);color:var(--fg);border-radius:20px;padding:18px 16px;width:100%;max-width:440px;text-align:left;box-shadow:0 12px 30px #0003}
+.obc.scroll{max-height:52vh;overflow:auto}.obc .cg{margin-top:4px}.obc .pills{margin-bottom:10px}
+.obc input{width:100%;font-size:17px;padding:12px}.obc .primary{margin-top:14px}
+.obb{display:flex;gap:10px;width:100%;max-width:440px;margin-top:14px}.obb .gbtn{margin:0}.obb .skip{flex:1;background:#ffffff38;color:#fff;box-shadow:none}.obb .go{flex:2}
+.home.splash{cursor:pointer}
 </style></head><body><div id="app"></div>
 <script>
 /* ===== Google 로그인용 Firebase 설정 — Firebase 콘솔 › 프로젝트 설정 › 내 앱(웹)에서 복사해 붙여넣으세요 ===== */
@@ -191,6 +199,9 @@ window.FIREBASE_CONFIG={
 };
 /* 관리자 계정: 이 이메일로 Google 로그인했을 때만 API 키 관리와 통계 화면이 보여요 (Firestore 규칙에도 같은 이메일을 넣어야 해요) */
 window.ADMIN_EMAIL="heyoumin1511@gmail.com";
+/* Android 앱(APK)용 Google 로그인: Google Cloud 콘솔 › API 및 서비스 › 사용자 인증 정보 › OAuth 클라이언트 ID(유형: 데스크톱 앱)를
+   nearby-lunch 프로젝트에 만들고 ID와 보안 비밀을 넣으세요. 웹사이트 로그인에는 쓰이지 않아요. */
+window.GOOGLE_APP_CLIENT={id:"",secret:""};
 </script>
 <script type="module">
 const C=window.FIREBASE_CONFIG,V='10.12.2',U=m=>`https://www.gstatic.com/firebasejs/${V}/firebase-${m}.js`;
@@ -204,6 +215,8 @@ else try{
   done({
     onUser:cb=>A.onAuthStateChanged(auth,cb),
     login:async()=>{try{await A.signInWithPopup(auth,gp)}catch(e){if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(e.code))return A.signInWithRedirect(auth,gp);throw e}},
+    /* Android app: Google ID token from the native sign-in → Firebase session */
+    loginToken:t=>A.signInWithCredential(auth,A.GoogleAuthProvider.credential(t)),
     logout:()=>A.signOut(auth),
     load:async uid=>{const d=await FS.getDoc(ud(uid));return d.exists()?d.data():null},
     save:(uid,data)=>FS.setDoc(ud(uid),data),
@@ -781,9 +794,9 @@ const seg=(on,fn,t)=>`<button class="${on?'on':''}" onclick="${fn}">${t}</button
 function setLang(v){S.lang=v;cache=null;gpool=null;save();render()}
 function settingsHTML(){const o=esc(location.origin);
   return`<div class="card"><p class="ct"><b>${L('계정','Account')}</b></p>
-  ${user?`<div class="acct">${user.photo?`<img class="av lg" src="${esc(user.photo)}" alt="" referrerpolicy="no-referrer">`:''}<div><b>${esc(user.name)}</b><div class="mut">${esc(user.email||'')}</div>
+  ${user?`<div class="acct">${user.photo?`<img class="av lg" src="${esc(user.photo)}" alt="" referrerpolicy="no-referrer">`:''}<div><b>${esc(S.nick||user.name)}</b><div class="mut">${esc(user.email||'')}</div>
     <div class="mut" style="font-size:12px">${syncState=='err'?`<span class="no">${L('클라우드 저장 실패 — 인터넷 연결을 확인하세요','Cloud save failed — check your connection')}</span>`:L('기록과 설정이 계정에 자동 저장돼요','History and settings sync to your account')}</div></div></div>
-    <div class="acts"><button onclick="doLogout()">${L('로그아웃','Sign out')}</button></div>`
+    <div class="acts"><button onclick="obEdit=true;view='nick';render()">${L('닉네임 변경','Change nickname')}</button><button onclick="doLogout()">${L('로그아웃','Sign out')}</button></div>`
   :`<p class="mut">${L('지금은 이 브라우저에만 저장돼요. 로그인하면 지금까지의 기록을 계정으로 옮기고 어느 기기에서나 이어서 쓸 수 있어요.','Right now data lives only in this browser. Sign in to move it to your account and use it on any device.')}</p>
     <button class="gbtn dark" onclick="doLogin()">${GLOGO}${L('Google로 로그인','Sign in with Google')}</button>${loginMsg?`<p class="no mut">${esc(loginMsg)}</p>`:''}`}</div>
   <div class="card"><p class="ct"><b>${L('일반','General')}</b></p>
@@ -860,6 +873,7 @@ ${S.inc.length||S.exc.length?`<button class="link" onclick="S.inc=[];S.exc=[];sa
 function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,maxP:4,inc:[],exc:[]});save();keepScroll(render)}
 function render(){syncRv();vWatch();
   if(view=='home'){$('#app').innerHTML=homeHTML();document.documentElement.lang=S.lang;startReel();return}
+  if(view=='nick'||view=='prefs'){stopReel();$('#app').innerHTML=obHTML();document.documentElement.lang=S.lang;return}
   stopReel();
   if(view=='admin'&&!isAdmin())view='set';
   const inSet=view=='set'||view=='admin';
@@ -881,22 +895,53 @@ function onAuth(u){if(u){user={uid:u.uid,name:u.displayName||u.email,email:u.ema
     FB.load(u.uid).then(async d=>{if(!user||user.uid!==u.uid)return;
       if(d){S=Object.assign(defS(),d.S||{});H=d.H||[];F=d.F||{};B=d.B||{};sv(K('lr_s'),S);sv(K('lr_h'),H);sv(K('lr_f'),F);sv(K('lr_b'),B);syncState='ok'}
       else await migrateGuest();
-      last=null;cache=null;gpool=null;render()}).catch(e=>{syncState='err';console.error(e);render()})}
+      last=null;cache=null;gpool=null;if(!S.nick&&view!='admin')startOb();else render()}).catch(e=>{syncState='err';console.error(e);render()})}
   else{user=null;ns='';loadLocal();authReady=true;render()}}
 async function loadConfig(){if(!FB)return;try{const c=await FB.getConfig();const k=c.mapsKey||'';if(k!==MAPKEY){MAPKEY=k;sv('lr_mk',k);gpool=null;render()}}catch(e){console.error(e)}}
 function initFB(){FB=window.__fb||null;if(!MAPKEY&&window.MAPS_KEY)MAPKEY=window.MAPS_KEY;
   if(FB){loadConfig();FB.onUser(u=>{onAuth(u);logVisit();if(u)FB.touchUser(u.uid,{email:u.email||'',name:u.displayName||'',photo:u.photoURL||''},0).catch(()=>{})})}else{authReady=true;render()}}
 if('__fb' in window)initFB();else window.addEventListener('fbready',initFB,{once:true});
 let loginMsg='';
-async function doLogin(){if(APP){loginMsg=L('앱에서는 아직 Google 로그인을 쓸 수 없어요. 로그인 없이 쓰면 기록은 이 휴대폰에 저장돼요.','Google sign-in is not available in the app yet. Without it, your data stays on this phone.');render();return}
+async function doLogin(){
   if(!FB){loginMsg=L('아직 로그인 기능이 설정되지 않았어요. 사이트 관리자가 Firebase 설정을 넣어야 해요.','Sign-in is not set up yet. The site owner needs to add the Firebase settings.');render();return}
-  loginMsg='';try{await FB.login()}catch(e){if(!['auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(e.code)){loginMsg=L('로그인에 실패했어요: ','Sign-in failed: ')+(e.code||e.message);render()}}}
+  loginMsg='';
+  if(APP){const c=window.GOOGLE_APP_CLIENT||{};   /* Google blocks sign-in inside app web views → the app signs in through Chrome */
+    if(!c.id){loginMsg=L('앱 로그인이 아직 설정되지 않았어요 (GOOGLE_APP_CLIENT). 로그인 없이 시작할 수 있어요.','App sign-in is not set up yet (GOOGLE_APP_CLIENT). You can start without signing in.');render();return}
+    APP.googleLogin(c.id,c.secret||'');return}
+  try{await FB.login()}catch(e){if(!['auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(e.code)){loginMsg=L('로그인에 실패했어요: ','Sign-in failed: ')+(e.code||e.message);render()}}}
 async function doLogout(){if(cloudT)await pushCloud();view='home';last=null;cache=null;gpool=null;sv('lr_guest',0);guest=false;await FB.logout();render()}
-function goGuest(){guest=true;sv('lr_guest',1);view='main';render()}
+function goGuest(){guest=true;sv('lr_guest',1);if(S.ob){view='main';render()}else startOb()}
+window.appLogin=async t=>{try{await FB.loginToken(t)}catch(e){loginMsg=L('로그인에 실패했어요: ','Sign-in failed: ')+(e.code||e.message);render()}};
+window.appLoginErr=m=>{if(m){loginMsg=L('로그인에 실패했어요: ','Sign-in failed: ')+m;render()}};
+
+/* ---------- onboarding: nickname (signed in) → favorite foods → first filter ---------- */
+let obSel=new Set(),obEdit=false;
+function startOb(){obSel=new Set(S.inc);view=user&&!S.nick?'nick':'prefs';render()}
+function obNick(){const v=($('#nk')?.value||'').trim().slice(0,20);
+  if(!v){$('#nkm').textContent=L('닉네임을 입력해 주세요.','Please enter a nickname.');return}
+  S.nick=v;save();if(obEdit){obEdit=false;view='set'}else{obSel=new Set(S.inc);view='prefs'}render()}
+function obPick(c,el){obSel.has(c)?obSel.delete(c):obSel.add(c);el.classList.toggle('on',obSel.has(c));const n=$('#obn');if(n)n.textContent=obSel.size?` (${obSel.size})`:''}
+function obDone(apply){if(apply){S.inc=CU.map(c=>c[0]).filter(c=>obSel.has(c));S.exc=S.exc.filter(c=>!obSel.has(c))}S.ob=1;S.tab='pick';view='main';save();render()}
+function obHTML(){const top=`<div class="home"><div class="floaters" aria-hidden="true">${floaters()}</div><div class="hcore">`;
+  if(view=='nick')return top+`<div class="obs">${obEdit?'':'1 / 2'}</div><h1 class="obt">${L('닉네임을 정해 주세요','Pick a nickname')}</h1><p class="hsub">${L('앱에서 이 이름으로 불러 드릴게요','This is what the app will call you')}</p>
+    <div class="obc"><input type="text" id="nk" maxlength="20" value="${esc(S.nick||(user?user.name.split(' ')[0]:''))}" placeholder="${L('닉네임','Nickname')}" autocomplete="nickname" enterkeyhint="next" onkeydown="if(event.key=='Enter')obNick()">
+    <p id="nkm" class="mut no" style="margin:6px 0 0"></p><button class="primary" onclick="obNick()">${obEdit?L('저장','Save'):L('다음','Next')}</button></div></div></div>`;
+  return top+`<div class="obs">${user?'2 / 2':''}</div><h1 class="obt">${L('어떤 음식을 좋아하세요?','What do you like to eat?')}</h1><p class="hsub">${L('고른 음식이 첫 필터로 설정돼요. 나중에 필터에서 바꿀 수 있어요.','Your picks become your starting filter. You can change it later in Filters.')}</p>
+    <div class="obc scroll">${CG.map(g=>`<div class="cg">${L(g[1],g[2])}</div><div class="pills">${CU.filter(c=>c[4]==g[0]).map(c=>`<button class="pill ${obSel.has(c[0])?'on':''}" onclick="obPick('${c[0]}',this)">${c[3]} ${L(c[1],c[2])}</button>`).join('')}</div>`).join('')}</div>
+    <div class="obb"><button class="gbtn skip" onclick="obDone(0)">${L('건너뛰기','Skip')}</button><button class="gbtn go" onclick="obDone(1)">${L('시작하기','Start')}<span id="obn">${obSel.size?` (${obSel.size})`:''}</span></button></div></div></div>`}
+
+/* ---------- back after 5+ minutes away: show the home screen briefly, then go back in ---------- */
+let hidAt=0,splash=false,splashT=null;
+function appHide(){if(!hidAt)hidAt=Date.now()}
+function appShow(){const away=hidAt?Date.now()-hidAt:0;hidAt=0;
+  if(away<5*6e4||!['main','set'].includes(view)||rvOpen!=null||(!user&&!guest))return;
+  splash=true;view='home';render();clearTimeout(splashT);splashT=setTimeout(endSplash,2600)}
+function endSplash(){clearTimeout(splashT);if(!splash)return;splash=false;if(view=='home'){view='main';render()}}
+document.addEventListener('visibilitychange',()=>document.visibilityState==='hidden'?appHide():appShow());
 
 /* ---------- home / landing ---------- */
 const GLOGO='<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
-const FLOAT=Array.from({length:16},(_,i)=>{const e=['🍜','🍣','🌮','🍔','🍕','🥗','🍛','🥟','🍝','🍗','🍲','🥪','🍰','🧋','🍱','🌶️'][i];
+const floaters=()=>Array.from({length:16},(_,i)=>{const e=['🍜','🍣','🌮','🍔','🍕','🥗','🍛','🥟','🍝','🍗','🍲','🥪','🍰','🧋','🍱','🌶️'][i];
   return`<span style="left:${(i*6.3+Math.random()*4).toFixed(1)}%;font-size:${22+Math.round(Math.random()*20)}px;animation-duration:${9+Math.random()*9}s;animation-delay:-${(Math.random()*16).toFixed(1)}s">${e}</span>`}).join('');
 let reelT=null;
 function stopReel(){clearTimeout(reelT);reelT=null}
@@ -906,18 +951,18 @@ function startReel(){stopReel();const pool=CU.filter(c=>c[0]!='other');let n=0;
     if(n<20){e.textContent=c[3];e.className='spinE';t.classList.add('dim');reelT=setTimeout(step,55+n*n*.7)}
     else{e.textContent=c[3];e.className='landE';t.textContent=L(`오늘은 ${c[1]} 어때요?`,`How about ${c[2]} today?`);t.classList.remove('dim');n=0;reelT=setTimeout(step,2400)}};
   step()}
-function homeHTML(){const first=user?esc(user.name.split(' ')[0]):'';
-  return`<div class="home"><div class="floaters" aria-hidden="true">${FLOAT}</div>
-  <button class="hlang" onclick="setLang(S.lang=='ko'?'en':'ko')">${S.lang=='ko'?'EN':'한국어'}</button>
+function homeHTML(){const first=esc(S.nick||(user?user.name.split(' ')[0]:''));
+  return`<div class="home ${splash?'splash':''}" ${splash?'onclick="endSplash()"':''}><div class="floaters" aria-hidden="true">${floaters()}</div>
+  ${splash?'':`<button class="hlang" onclick="setLang(S.lang=='ko'?'en':'ko')">${S.lang=='ko'?'EN':'한국어'}</button>`}
   <div class="hcore"><div class="logo" aria-hidden="true">🎲</div>
     <h1 class="ht">${L('점심 룰렛','Lunch Roulette')}</h1><p class="hsub">${L('오늘 점심 고민, 주사위에게 맡기세요','Let the dice decide today’s lunch')}</p>
     <div class="reel"><div class="rw"><span id="reelE">🍜</span></div><div class="rtx" id="reelT">${L('오늘은 뭐 먹지?','What should I eat?')}</div></div>
     <p class="hdesc">${L('내 주변 반경 안의 음식점 중 한 곳을 무작위로 골라 드려요. 평점·리뷰·영업시간을 함께 보여주고, 다녀온 곳은 사진과 리뷰로 기록할 수 있어요.','Picks a random restaurant within your chosen radius, shows ratings, reviews and hours, and lets you keep your own notes and photos of places you’ve been.')}</p>
     <ul class="feat"><li>📍 ${L('반경·가격·음식 종류로 범위 정하기','Set radius, price and cuisine')}</li><li>🎲 ${L('그 안에서 진짜 랜덤 추천','Truly random pick in range')}</li><li>📝 ${L('나만의 리뷰와 사진 기록','Your own reviews and photos')}</li></ul>
-    ${!authReady?`<button class="gbtn" disabled>${L('확인 중…','Checking…')}</button>`
+    ${splash?`<p class="hsub">${first?L(`${first}님, 다시 오셨네요!`,`Welcome back, ${first}!`):L('다시 오셨네요!','Welcome back!')}</p>`
+    :!authReady?`<button class="gbtn" disabled>${L('확인 중…','Checking…')}</button>`
     :user?`<button class="gbtn" onclick="view='main';render()">${user.photo?`<img class="av" src="${esc(user.photo)}" alt="" referrerpolicy="no-referrer">`:''}${L(`${first}님, 이어서 하기`,`Continue as ${first}`)}</button><button class="glink" onclick="doLogout()">${L('다른 계정으로 로그인','Use another account')}</button>`
-    :APP?`<button class="gbtn" onclick="goGuest()">🎲 ${L('시작하기','Get started')}</button>`
-    :`<button class="gbtn" onclick="doLogin()">${GLOGO}${L('Google로 계속하기','Continue with Google')}</button><button class="glink" onclick="goGuest()">${L('로그인 없이 둘러보기','Try without signing in')}</button>
+    :`<button class="gbtn" onclick="doLogin()">${GLOGO}${L('Google로 계속하기','Continue with Google')}</button><button class="glink" onclick="goGuest()">${L('로그인 없이 시작하기','Start without signing in')}</button>
       <p class="small">${L('로그인하면 기록과 설정이 계정에 저장돼서 어느 기기에서나 그대로 이어져요.','Sign in to keep your history and settings on any device.')}</p>`}
     ${loginMsg?`<p class="lerr">${esc(loginMsg)}</p>`:''}</div></div>`}
 

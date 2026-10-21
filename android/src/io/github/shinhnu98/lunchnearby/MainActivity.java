@@ -34,8 +34,9 @@ import java.util.List;
 
 /** Full-screen WebView running the bundled index.html, plus the native bits a web page can't do (background visit check, notifications). */
 public class MainActivity extends Activity {
-    /* reserved Android domain for local app content; requests to it never leave the phone */
-    static final String HOST = "appassets.androidplatform.net";
+    /* The bundled page is served under the website's own address, so Google/Firebase key restrictions
+       and sign-in domains that allow the website also allow the app. These requests never leave the phone. */
+    static final String HOST = "shinhnu98.github.io", BASE = "/lunchnearby/";
     private static final int RQ_FILE = 1, RQ_GEO = 2, RQ_TRACK = 3;
     private static MainActivity live;
 
@@ -86,7 +87,7 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new Client());
         web.setWebChromeClient(new Chrome());
         if (b != null) web.restoreState(b);
-        else web.loadUrl("https://" + HOST + "/index.html");
+        else web.loadUrl("https://" + HOST + BASE);
         live = this;
     }
 
@@ -159,12 +160,18 @@ public class MainActivity extends Activity {
         }
     }
 
+    private static boolean ours(Uri u) {
+        String p = u.getPath();
+        return "https".equals(u.getScheme()) && HOST.equals(u.getHost()) && p != null && p.startsWith(BASE);
+    }
+
     private class Client extends WebViewClient {
         @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
             Uri u = r.getUrl();
-            if (!HOST.equals(u.getHost())) return null;
             String p = u.getPath();
-            if (p == null || p.equals("/")) p = "/index.html";
+            if (!ours(u) || p == null) return null;
+            p = "/" + p.substring(BASE.length());
+            if (p.equals("/")) p = "/index.html";
             String mime = p.endsWith(".html") ? "text/html" : p.endsWith(".js") ? "text/javascript" : p.endsWith(".png") ? "image/png" : "application/octet-stream";
             try {
                 InputStream in = getAssets().open("www" + p);
@@ -176,7 +183,7 @@ public class MainActivity extends Activity {
 
         @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
             Uri u = r.getUrl();
-            if (!r.isForMainFrame() || HOST.equals(u.getHost())) return false;
+            if (!r.isForMainFrame() || ours(u)) return false;
             openExternal(u); /* maps, phone, websites → their own apps */
             return true;
         }

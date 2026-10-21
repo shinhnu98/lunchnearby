@@ -1,0 +1,254 @@
+package io.github.shinhnu98.lunchnearby;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ContentValues;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.MediaStore;
+import android.view.View;
+import android.webkit.GeolocationPermissions;
+import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+/** Full-screen WebView running the bundled index.html, plus the native bits a web page can't do (background visit check, notifications). */
+public class MainActivity extends Activity {
+    /* reserved Android domain for local app content; requests to it never leave the phone */
+    static final String HOST = "appassets.androidplatform.net";
+    private static final int RQ_FILE = 1, RQ_GEO = 2, RQ_TRACK = 3;
+    private static MainActivity live;
+
+    private WebView web;
+    private ValueCallback<Uri[]> fileCb;
+    private Uri camUri;
+    private GeolocationPermissions.Callback geoCb;
+    private String geoOrigin;
+    private boolean askedTrack;
+    private volatile String lastTrack = "";
+
+    /** Called by VisitService when a visit state changes: redraw the page so it picks it up. */
+    static void refresh() {
+        final MainActivity a = live;
+        if (a == null) return;
+        a.runOnUiThread(new Runnable() {
+            @Override public void run() {
+                a.web.evaluateJavascript("window.render&&render()", null);
+            }
+        });
+    }
+
+    private boolean granted(String p) {
+        return checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private boolean hasLoc() {
+        return granted(Manifest.permission.ACCESS_FINE_LOCATION) || granted(Manifest.permission.ACCESS_COARSE_LOCATION);
+    }
+
+    @Override protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        getWindow().setStatusBarColor(dark ? Color.rgb(0x1c, 0x17, 0x12) : Color.rgb(0xfa, 0xf6, 0xf0));
+        getWindow().setNavigationBarColor(dark ? Color.rgb(0x27, 0x20, 0x19) : Color.WHITE);
+        if (!dark) getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
+        web = new WebView(this);
+        setContentView(web);
+        WebSettings s = web.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        s.setDatabaseEnabled(true);
+        s.setGeolocationEnabled(true);
+        s.setAllowFileAccess(false);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        web.addJavascriptInterface(new Bridge(), "AndroidApp");
+        web.setWebViewClient(new Client());
+        web.setWebChromeClient(new Chrome());
+        if (b != null) web.restoreState(b);
+        else web.loadUrl("https://" + HOST + "/index.html");
+        live = this;
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        super.onSaveInstanceState(out);
+        web.saveState(out);
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        lastTrack = ""; /* re-check the background service on every return */
+        refresh();
+    }
+
+    @Override protected void onDestroy() {
+        if (live == this) live = null;
+        web.destroy();
+        super.onDestroy();
+    }
+
+    @Override public void onBackPressed() {
+        if (web.canGoBack()) web.goBack();
+        else moveTaskToBack(true);
+    }
+
+    private void openExternal(Uri u) {
+        try {
+            Intent i = "intent".equals(u.getScheme()) ? Intent.parseUri(u.toString(), Intent.URI_INTENT_SCHEME) : new Intent(Intent.ACTION_VIEW, u);
+            if ("tel".equals(u.getScheme())) i = new Intent(Intent.ACTION_DIAL, u);
+            startActivity(i);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private class Client extends WebViewClient {
+        @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
+            Uri u = r.getUrl();
+            if (!HOST.equals(u.getHost())) return null;
+            String p = u.getPath();
+            if (p == null || p.equals("/")) p = "/index.html";
+            String mime = p.endsWith(".html") ? "text/html" : p.endsWith(".js") ? "text/javascript" : p.endsWith(".png") ? "image/png" : "application/octet-stream";
+            try {
+                InputStream in = getAssets().open("www" + p);
+                return new WebResourceResponse(mime, "utf-8", in);
+            } catch (IOException e) {
+                return new WebResourceResponse("text/plain", "utf-8", 404, "Not Found", new HashMap<String, String>(), null);
+            }
+        }
+
+        @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+            Uri u = r.getUrl();
+            if (!r.isForMainFrame() || HOST.equals(u.getHost())) return false;
+            openExternal(u); /* maps, phone, websites → their own apps */
+            return true;
+        }
+    }
+
+    private class Chrome extends WebChromeClient {
+        @Override public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback cb) {
+            if (hasLoc()) {
+                cb.invoke(origin, true, false);
+                return;
+            }
+            geoCb = cb;
+            geoOrigin = origin;
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, RQ_GEO);
+        }
+
+        @Override public boolean onShowFileChooser(WebView v, ValueCallback<Uri[]> cb, FileChooserParams p) {
+            if (fileCb != null) fileCb.onReceiveValue(null);
+            fileCb = cb;
+            camUri = null;
+            Intent i;
+            if (p.isCaptureEnabled()) {
+                ContentValues cv = new ContentValues();
+                cv.put(MediaStore.Images.Media.DISPLAY_NAME, "lunch_" + System.currentTimeMillis() + ".jpg");
+                cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                try {
+                    camUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                } catch (Exception ignored) {
+                }
+                i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                if (camUri != null) i.putExtra(MediaStore.EXTRA_OUTPUT, camUri);
+                i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            } else {
+                i = new Intent(Intent.ACTION_GET_CONTENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/*");
+                if (p.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            }
+            try {
+                startActivityForResult(i, RQ_FILE);
+            } catch (ActivityNotFoundException e) {
+                fileCb = null;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    @Override protected void onActivityResult(int rq, int res, Intent data) {
+        if (rq != RQ_FILE || fileCb == null) return;
+        Uri[] out = null;
+        if (res == RESULT_OK) {
+            if (camUri != null) out = new Uri[]{camUri};
+            else if (data != null) {
+                ClipData cd = data.getClipData();
+                if (cd != null) {
+                    out = new Uri[cd.getItemCount()];
+                    for (int i = 0; i < out.length; i++) out[i] = cd.getItemAt(i).getUri();
+                } else if (data.getData() != null) out = new Uri[]{data.getData()};
+            }
+        } else if (camUri != null) {
+            try {
+                getContentResolver().delete(camUri, null, null);
+            } catch (Exception ignored) {
+            }
+        }
+        fileCb.onReceiveValue(out);
+        fileCb = null;
+        camUri = null;
+    }
+
+    /** Ask for what the background visit check needs, then start it. */
+    private void startTracking() {
+        List<String> need = new ArrayList<>();
+        if (!hasLoc()) {
+            need.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            need.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
+        if (Build.VERSION.SDK_INT >= 33 && !granted(Manifest.permission.POST_NOTIFICATIONS))
+            need.add(Manifest.permission.POST_NOTIFICATIONS);
+        if (!need.isEmpty() && !askedTrack) {
+            askedTrack = true;
+            requestPermissions(need.toArray(new String[0]), RQ_TRACK);
+            return;
+        }
+        if (hasLoc()) VisitService.sync(this);
+    }
+
+    @Override public void onRequestPermissionsResult(int rq, String[] perms, int[] res) {
+        if (rq == RQ_GEO && geoCb != null) {
+            geoCb.invoke(geoOrigin, hasLoc(), false);
+            geoCb = null;
+        } else if (rq == RQ_TRACK && hasLoc()) {
+            VisitService.sync(this);
+        }
+    }
+
+    /** window.AndroidApp in the page */
+    private class Bridge {
+        /* the page calls this on every redraw; only act when the list actually changed */
+        @JavascriptInterface public void track(final String json, final String lang) {
+            if ((json + lang).equals(lastTrack)) return;
+            lastTrack = json + lang;
+            VisitStore.setTargets(MainActivity.this, json, lang);
+            runOnUiThread(new Runnable() {
+                @Override public void run() {
+                    if (VisitStore.active(MainActivity.this).isEmpty()) VisitService.sync(MainActivity.this);
+                    else startTracking();
+                }
+            });
+        }
+
+        @JavascriptInterface public String state() {
+            return VisitStore.state(MainActivity.this);
+        }
+    }
+}

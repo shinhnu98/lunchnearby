@@ -226,6 +226,7 @@ else try{
 </script>
 <script>
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const APP=window.AndroidApp||null;   /* set when running inside the Android app */
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const NL=navigator.language||'';
 const defS=()=>({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,maxP:4});
@@ -472,7 +473,7 @@ function status(p){if(p.open===true)return{c:'ok',t:L('영업 중','Open now')+(
 const msg=t=>{const e=$('#msg');if(e)e.textContent=t};
 async function go(){
   if(busy)return;busy=true;last=null;
-  try{if('Notification' in window&&Notification.permission=='default')Notification.requestPermission().catch(()=>{})}catch{}$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
+  try{if(!APP&&'Notification' in window&&Notification.permission=='default')Notification.requestPermission().catch(()=>{})}catch{}$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
   try{
     const c=S.place?{latitude:S.place.la,longitude:S.place.lo}:await loc().catch(()=>{throw new Error(L('위치 권한이 필요해요. 위치를 허용하거나 위의 위치 버튼으로 원하는 곳을 검색하세요.','Location permission is needed. Allow it, or search for a place with the location button above.'))});
     if(!S.place)lastC=c;
@@ -578,7 +579,13 @@ const V_IN=60,V_OUT=150,V_STAY=5*6e4,V_GONE=6e4,V_WIN=3*36e5,V_MAX=5*36e5;
 let geoW=null;const vOut=new Map();
 function vCand(){const n=Date.now(),seen={};
   return H.filter(h=>{if(seen[h.id])return false;seen[h.id]=1;return h.la!=null&&!h.dep&&(h.arr?n-h.arr<V_MAX:n-h.ts<V_WIN)})}
-function vWatch(){const on=vCand().length>0;
+/* in the Android app the phone tracks visits natively (also in the background): read its results, hand it the picks to watch */
+function vApp(){let ch=false;
+  try{JSON.parse(APP.state()).forEach(s=>{const h=H.find(x=>x.ts==s.ts);if(!h||h.dep)return;
+    if(s.dep){h.arr=s.arr;h.dep=s.dep;h.ask=1;ch=true}else if((s.arr||undefined)!==h.arr){if(s.arr)h.arr=s.arr;else delete h.arr;ch=true}})}catch{}
+  if(ch)save();
+  try{APP.track(JSON.stringify(vCand().map(h=>({ts:h.ts,la:h.la,lo:h.lo,name:h.name,arr:h.arr||0}))),S.lang)}catch{}}
+function vWatch(){if(APP)return vApp();const on=vCand().length>0;
   if(on&&geoW==null&&navigator.geolocation)geoW=navigator.geolocation.watchPosition(vPos,()=>{},{enableHighAccuracy:true,maximumAge:30000,timeout:60000});
   else if(!on&&geoW!=null){navigator.geolocation.clearWatch(geoW);geoW=null;vOut.clear()}}
 function vPos(p){const c=p.coords,n=Date.now();if(c.accuracy>100)return;let ch=false;
@@ -603,7 +610,7 @@ const vAskH=()=>{if(rvOpen!=null)return'';const i=H.findIndex(h=>h.ask);if(i<0)r
   return`<div class="ov" onclick="vAsk(${i},0)"></div><div class="asheet" role="dialog"><div class="grab" style="margin:0 auto 12px"></div>
   <p><b>✅ ${esc(h.name)}</b></p><p class="mut">${L(`${hhmm(h.arr)}부터 ${stayMin(h)}분 머무르셨어요. 맛있게 드셨나요? 리뷰를 남겨 볼까요?`,`You were here ${stayMin(h)} min from ${hhmm(h.arr)}. How was it? Leave a review?`)}</p>
   <div class="acts"><button onclick="vAsk(${i},0)">${L('나중에','Later')}</button><button class="go" onclick="vAsk(${i},1)">${L('리뷰 쓰기','Write review')}</button></div></div>`};
-if('serviceWorker' in navigator&&location.protocol=='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(!APP&&'serviceWorker' in navigator&&location.protocol=='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 /* ---------- photos: compressed and kept in this browser's IndexedDB ---------- */
 const idb=(()=>{let dbp;const open=()=>dbp||(dbp=new Promise((ok,no)=>{const r=indexedDB.open('lr_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}));
   const tx=async(m,f)=>{const db=await open();return new Promise((ok,no)=>{const t=db.transaction('p',m),q=f(t.objectStore('p'));t.oncomplete=()=>ok(q&&q.result);t.onerror=()=>no(t.error)})};
@@ -881,7 +888,8 @@ function initFB(){FB=window.__fb||null;if(!MAPKEY&&window.MAPS_KEY)MAPKEY=window
   if(FB){loadConfig();FB.onUser(u=>{onAuth(u);logVisit();if(u)FB.touchUser(u.uid,{email:u.email||'',name:u.displayName||'',photo:u.photoURL||''},0).catch(()=>{})})}else{authReady=true;render()}}
 if('__fb' in window)initFB();else window.addEventListener('fbready',initFB,{once:true});
 let loginMsg='';
-async function doLogin(){if(!FB){loginMsg=L('아직 로그인 기능이 설정되지 않았어요. 사이트 관리자가 Firebase 설정을 넣어야 해요.','Sign-in is not set up yet. The site owner needs to add the Firebase settings.');render();return}
+async function doLogin(){if(APP){loginMsg=L('앱에서는 아직 Google 로그인을 쓸 수 없어요. 로그인 없이 쓰면 기록은 이 휴대폰에 저장돼요.','Google sign-in is not available in the app yet. Without it, your data stays on this phone.');render();return}
+  if(!FB){loginMsg=L('아직 로그인 기능이 설정되지 않았어요. 사이트 관리자가 Firebase 설정을 넣어야 해요.','Sign-in is not set up yet. The site owner needs to add the Firebase settings.');render();return}
   loginMsg='';try{await FB.login()}catch(e){if(!['auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(e.code)){loginMsg=L('로그인에 실패했어요: ','Sign-in failed: ')+(e.code||e.message);render()}}}
 async function doLogout(){if(cloudT)await pushCloud();view='home';last=null;cache=null;gpool=null;sv('lr_guest',0);guest=false;await FB.logout();render()}
 function goGuest(){guest=true;sv('lr_guest',1);view='main';render()}
@@ -908,6 +916,7 @@ function homeHTML(){const first=user?esc(user.name.split(' ')[0]):'';
     <ul class="feat"><li>📍 ${L('반경·가격·음식 종류로 범위 정하기','Set radius, price and cuisine')}</li><li>🎲 ${L('그 안에서 진짜 랜덤 추천','Truly random pick in range')}</li><li>📝 ${L('나만의 리뷰와 사진 기록','Your own reviews and photos')}</li></ul>
     ${!authReady?`<button class="gbtn" disabled>${L('확인 중…','Checking…')}</button>`
     :user?`<button class="gbtn" onclick="view='main';render()">${user.photo?`<img class="av" src="${esc(user.photo)}" alt="" referrerpolicy="no-referrer">`:''}${L(`${first}님, 이어서 하기`,`Continue as ${first}`)}</button><button class="glink" onclick="doLogout()">${L('다른 계정으로 로그인','Use another account')}</button>`
+    :APP?`<button class="gbtn" onclick="goGuest()">🎲 ${L('시작하기','Get started')}</button>`
     :`<button class="gbtn" onclick="doLogin()">${GLOGO}${L('Google로 계속하기','Continue with Google')}</button><button class="glink" onclick="goGuest()">${L('로그인 없이 둘러보기','Try without signing in')}</button>
       <p class="small">${L('로그인하면 기록과 설정이 계정에 저장돼서 어느 기기에서나 그대로 이어져요.','Sign in to keep your history and settings on any device.')}</p>`}
     ${loginMsg?`<p class="lerr">${esc(loginMsg)}</p>`:''}</div></div>`}

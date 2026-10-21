@@ -55,6 +55,8 @@ public class VisitService extends Service implements LocationListener {
         NotificationManager nm = c.getSystemService(NotificationManager.class);
         boolean k = ko(c);
         nm.createNotificationChannel(new NotificationChannel("track", k ? "방문 확인" : "Visit check", NotificationManager.IMPORTANCE_LOW));
+        /* Android needs a status notification while checking location in the background; with alerts off it stays folded away */
+        nm.createNotificationChannel(new NotificationChannel("track_quiet", k ? "방문 확인 (알림 끔)" : "Visit check (alerts off)", NotificationManager.IMPORTANCE_MIN));
         nm.createNotificationChannel(new NotificationChannel("visit", k ? "방문 완료 알림" : "Visit alerts", NotificationManager.IMPORTANCE_HIGH));
     }
 
@@ -67,16 +69,14 @@ public class VisitService extends Service implements LocationListener {
         channels(c);
         boolean k = ko(c);
         List<JSONObject> a = VisitStore.active(c);
-        String text = k ? "고른 음식점에 도착하면 방문으로 기록해요" : "Your visit is logged when you reach the pick";
-        for (JSONObject o : a) {
-            String n = o.optString("name");
+        String text = k ? "음식점 방문을 기다리는 중 · 룰렛 결과 " + a.size() + "곳" : "Waiting for your restaurant visit · " + a.size() + (a.size() == 1 ? " pick" : " picks");
+        for (JSONObject o : a)
             if (o.optLong("arr") > 0) {
+                String n = o.optString("name");
                 text = k ? n + "에 도착했어요 · 식사 후 나가면 방문으로 기록돼요" : "You're at " + n + " · leaving logs the visit";
                 break;
             }
-            text = k ? n + " 도착을 기다리는 중" : "Waiting to arrive at " + n;
-        }
-        return new Notification.Builder(c, "track")
+        return new Notification.Builder(c, VisitStore.notifyOn(c) ? "track" : "track_quiet")
                 .setSmallIcon(android.R.drawable.ic_menu_mylocation)
                 .setContentTitle(k ? "점심 방문 확인 중" : "Checking your lunch visit")
                 .setContentText(text)
@@ -86,6 +86,7 @@ public class VisitService extends Service implements LocationListener {
     }
 
     private void notifyVisit(JSONObject o) {
+        if (!VisitStore.notifyOn(this)) return; /* the app asks about it the next time it's opened */
         boolean k = ko(this), ask = o.optInt("q") == 1;
         String n = o.optString("name");
         Notification nt = new Notification.Builder(this, "visit")

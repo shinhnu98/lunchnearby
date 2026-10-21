@@ -282,10 +282,10 @@ public class MainActivity extends Activity {
     /** window.AndroidApp in the page */
     private class Bridge {
         /* the page calls this on every redraw; only act when the list actually changed */
-        @JavascriptInterface public void track(final String json, final String lang) {
-            if ((json + lang).equals(lastTrack)) return;
-            lastTrack = json + lang;
-            VisitStore.setTargets(MainActivity.this, json, lang);
+        @JavascriptInterface public void track(final String json, final String lang, final boolean notify) {
+            if ((json + lang + notify).equals(lastTrack)) return;
+            lastTrack = json + lang + notify;
+            VisitStore.setTargets(MainActivity.this, json, lang, notify);
             runOnUiThread(new Runnable() {
                 @Override public void run() {
                     if (VisitStore.active(MainActivity.this).isEmpty()) VisitService.sync(MainActivity.this);
@@ -300,6 +300,12 @@ public class MainActivity extends Activity {
                     loginDone(idToken, error);
                 }
             });
+        }
+
+        /** visit notifications switched on in Settings: make sure Android lets us show them */
+        @JavascriptInterface public void askNotify() {
+            if (Build.VERSION.SDK_INT >= 33 && !granted(Manifest.permission.POST_NOTIFICATIONS))
+                requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 4);
         }
 
         @JavascriptInterface public String state() {

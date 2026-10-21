@@ -242,7 +242,7 @@ const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const APP=window.AndroidApp||null;   /* set when running inside the Android app */
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const NL=navigator.language||'';
-const defS=()=>({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,maxP:4});
+const defS=()=>({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,notify:true,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,maxP:4});
 let MAPKEY=ld('lr_mk',''),ns='',user=null,FB=null,authReady=false,guest=!!ld('lr_guest',0),S,H,F,B;
 const K=k=>ns+k;
 function loadLocal(){S=Object.assign(defS(),ld(K('lr_s'),{}));delete S.ff;if(!['pick','hist'].includes(S.tab))S.tab='pick';H=ld(K('lr_h'),[]);F=ld(K('lr_f'),{});B=ld(K('lr_b'),{})}
@@ -486,7 +486,7 @@ function status(p){if(p.open===true)return{c:'ok',t:L('영업 중','Open now')+(
 const msg=t=>{const e=$('#msg');if(e)e.textContent=t};
 async function go(){
   if(busy)return;busy=true;last=null;
-  try{if(!APP&&'Notification' in window&&Notification.permission=='default')Notification.requestPermission().catch(()=>{})}catch{}$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
+  try{if(!APP&&S.notify&&'Notification' in window&&Notification.permission=='default')Notification.requestPermission().catch(()=>{})}catch{}$('#res').innerHTML='';$('.spin')?.classList.add('busy');msg(S.place?'':L('위치 확인 중…','Getting your location…'));
   try{
     const c=S.place?{latitude:S.place.la,longitude:S.place.lo}:await loc().catch(()=>{throw new Error(L('위치 권한이 필요해요. 위치를 허용하거나 위의 위치 버튼으로 원하는 곳을 검색하세요.','Location permission is needed. Allow it, or search for a place with the location button above.'))});
     if(!S.place)lastC=c;
@@ -609,7 +609,7 @@ function vApp(){let ch=false;
     if(s.dep){vLeft(h,s.arr,s.dep);ch=true}else if((s.arr||undefined)!==h.arr){if(s.arr)h.arr=s.arr;else delete h.arr;ch=true}})}catch{}
   if(ch)save();
   const q=S.vsess&&S.vsess.dep?1:0,exp=vUntil();
-  try{APP.track(JSON.stringify(vCand().map(h=>({ts:h.ts,la:h.la,lo:h.lo,name:h.name,arr:h.arr||0,q,exp}))),S.lang)}catch{}}
+  try{APP.track(JSON.stringify(vCand().map(h=>({ts:h.ts,la:h.la,lo:h.lo,name:h.name,arr:h.arr||0,q,exp}))),S.lang,S.notify!==false)}catch{}}
 function vWatch(){if(APP)return vApp();const on=vCand().length>0;
   if(on&&geoW==null&&navigator.geolocation)geoW=navigator.geolocation.watchPosition(vPos,()=>{},{enableHighAccuracy:true,maximumAge:30000,timeout:60000});
   else if(!on&&geoW!=null){navigator.geolocation.clearWatch(geoW);geoW=null;vOut.clear()}}
@@ -623,7 +623,8 @@ function vPos(p){const c=p.coords,n=Date.now();if(c.accuracy>100)return;let ch=f
   if(ch){save();render()}}
 const stayMin=h=>Math.max(1,Math.round(((h.dep||Date.now())-h.arr)/6e4));
 const hhmm=ts=>{const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
-function vNotify(h){try{navigator.vibrate&&navigator.vibrate([80,60,80])}catch{}
+function vNotify(h){if(S.notify===false)return;   /* alerts off: the in-app prompt asks on the next visit to the app */
+  try{navigator.vibrate&&navigator.vibrate([80,60,80])}catch{}
   if(!('Notification' in window)||Notification.permission!=='granted')return;
   const t=h.cf?L(`${h.name}에 방문하셨나요?`,`Did you visit ${h.name}?`):L(`${h.name} 방문 완료!`,`Visited ${h.name}`),
     o={body:h.cf?L('눌러서 방문했는지 알려 주세요.','Tap to let us know.'):L('맛있게 드셨나요? 눌러서 리뷰를 남겨 보세요.','How was it? Tap to leave a review.'),tag:'v'+h.ts};
@@ -811,6 +812,8 @@ const listHTML=(o,fn)=>Object.keys(o).length?Object.entries(o).map(([k,v])=>`<di
 
 /* ---------- settings ---------- */
 const seg=(on,fn,t)=>`<button class="${on?'on':''}" onclick="${fn}">${t}</button>`;
+function setNotify(on){S.notify=on;save();
+  if(on){try{if(APP)APP.askNotify();else if('Notification' in window&&Notification.permission=='default')Notification.requestPermission().catch(()=>{})}catch{}}render()}
 function setLang(v){S.lang=v;cache=null;gpool=null;save();render()}
 function settingsHTML(){const o=esc(location.origin);
   return`<div class="card"><p class="ct"><b>${L('계정','Account')}</b></p>
@@ -821,6 +824,7 @@ function settingsHTML(){const o=esc(location.origin);
     <button class="gbtn dark" onclick="doLogin()">${GLOGO}${L('Google로 로그인','Sign in with Google')}</button>${loginMsg?`<p class="no mut">${esc(loginMsg)}</p>`:''}`}</div>
   <div class="card"><p class="ct"><b>${L('일반','General')}</b></p>
   <div class="srow"><span>${L('언어','Language')}</span><div class="seg">${seg(S.lang=='ko',"setLang('ko')",'한국어')}${seg(S.lang=='en',"setLang('en')",'English')}</div></div>
+  <div class="srow"><span>${L('방문 알림','Visit notifications')}<div class="mut" style="font-size:12px">${S.notify!==false?L('음식점 방문이 확인되면 알림으로 알려 드려요','Get a notification when a visit is detected'):L('알림 없이, 앱을 다시 열 때 방문했는지 물어봐요','No alerts — the app asks when you open it next')}</div></span><div class="seg">${seg(S.notify!==false,'setNotify(true)',L('켜기','On'))}${seg(S.notify===false,'setNotify(false)',L('끄기','Off'))}</div></div>
   <div class="srow"><span>${L('거리 단위','Distance unit')}</span><div class="seg">${seg(S.unit=='mi',"S.unit='mi';save();render()",L('마일 (mi)','Miles'))}${seg(S.unit=='km',"S.unit='km';save();render()",L('킬로미터 (km)','Kilometers'))}</div></div></div>
   ${isAdmin()?adminCard(o):''}
   <div class="card"><p class="ct"><b>${L('찜한 맛집','Favorites')}</b> <span class="mut">${L('추천 확률이 올라가요','picked more often')}</span></p>${listHTML(F,'favT')}</div>

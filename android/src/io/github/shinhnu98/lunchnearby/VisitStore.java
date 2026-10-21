@@ -43,8 +43,13 @@ final class VisitStore {
         return prefs(c).getString("lang", "ko");
     }
 
+    /** the app's "visit notifications" setting; when off, visits are only asked about inside the app */
+    static boolean notifyOn(Context c) {
+        return prefs(c).getBoolean("notify", true);
+    }
+
     /** Replace the watched picks with the page's current list, keeping progress already made. */
-    static synchronized void setTargets(Context c, String json, String lang) {
+    static synchronized void setTargets(Context c, String json, String lang, boolean notify) {
         JSONObject old = load(c), now = new JSONObject();
         long t = System.currentTimeMillis();
         try {
@@ -75,7 +80,7 @@ final class VisitStore {
             return;
         }
         store(c, now);
-        prefs(c).edit().putString("lang", "en".equals(lang) ? "en" : "ko").apply();
+        prefs(c).edit().putString("lang", "en".equals(lang) ? "en" : "ko").putBoolean("notify", notify).apply();
     }
 
     static synchronized String state(Context c) {

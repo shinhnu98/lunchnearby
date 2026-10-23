@@ -1,0 +1,977 @@
+{
+ "updated": "2026-10-23",
+ "currency": "USD",
+ "method": "Per-person spend before tax & tip. main/side/dessert/drink = typical à-la-carte price of one item (for sit-down places, side = an appetizer shared by 2; for pizza chains, one person = 3 of 8 slices of a large and shared sides/2-liters split by 3; for cafés, main = one drink). The app averages 5 usual orders: main · main+side · main+drink · main+side+drink · main+side+dessert+drink. 'est' marks categories no source priced, filled with a typical value for that kind of restaurant. Prices vary by location; most sources are third-party price trackers.",
+ "chains": [
+  {
+   "id": "mcdonalds",
+   "name": "McDonald's",
+   "names": [
+    "mcdonald's",
+    "mcdonalds"
+   ],
+   "type": "fast_food",
+   "main": 6.29,
+   "side": 3.79,
+   "dessert": 3.89,
+   "drink": 2.29,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Big Mac $5.99, Quarter Pounder w/ Cheese $6.39–6.79; medium fries $3.56 (US avg)–$3.99; McFlurry & soft drinks only given as ranges ($3–4, $1.50–3)",
+   "src": [
+    "https://awajis.com/us/?p=800",
+    "https://menupedia.us/mcdonalds-menu/",
+    "https://thetakeout.com/2109151/what-buy-mcdonalds-five-dollars-2026"
+   ]
+  },
+  {
+   "id": "tacobell",
+   "name": "Taco Bell",
+   "names": [
+    "taco bell"
+   ],
+   "type": "fast_food",
+   "main": 5.74,
+   "side": 2.99,
+   "dessert": 1.79,
+   "drink": 2.69,
+   "year": 2026,
+   "note": "Crunchwrap Supreme $6.49, Beefy 5-Layer Burrito $4.99; side = an extra taco (Cantina Chicken Crispy Taco $2.99); Cinnamon Twists $1.79; regular fountain drink $2.69",
+   "src": [
+    "https://menupedia.us/taco-bell-menu/",
+    "https://www.thirstybear.com/?p=18946"
+   ]
+  },
+  {
+   "id": "burgerville",
+   "name": "Burgerville",
+   "names": [
+    "burgerville"
+   ],
+   "type": "fast_food",
+   "main": 5.99,
+   "side": 1.99,
+   "dessert": 5.49,
+   "drink": 1.99,
+   "est": [
+    "drink"
+   ],
+   "year": 2025,
+   "note": "Pepper Bacon Cheeseburger single $5.99 (Dec 2025 review); medium fries $1.99; small shake $5.49 (seasonal); kids' drink $1.59",
+   "src": [
+    "https://www.thepricer.org/burgerville-menu-prices/"
+   ]
+  },
+  {
+   "id": "wendys",
+   "name": "Wendy's",
+   "names": [
+    "wendy's",
+    "wendys"
+   ],
+   "type": "fast_food",
+   "main": 7.39,
+   "side": 2.99,
+   "dessert": 1.99,
+   "drink": 2.29,
+   "est": [
+    "side",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Dave's Single $6.29–6.49, Baconator $8.49–8.99; small Frosty $1.99; official LTO: Dave's Single combo (small fries + small drink) $7.99, Oct 2026",
+   "src": [
+    "https://menupedia.us/wendys-menu/",
+    "https://s1.q4cdn.com/202642389/files/doc_news/Fresh-Beef-Fresh-Deal-Wendys-Debuts-the-7-99-Daves-Single-Combo-Meal-2026.pdf"
+   ]
+  },
+  {
+   "id": "deltaco",
+   "name": "Del Taco",
+   "names": [
+    "del taco"
+   ],
+   "type": "fast_food",
+   "main": 6.19,
+   "side": 2.49,
+   "dessert": 1.99,
+   "drink": 2.49,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Classic burritos $4.29–4.99, Epic burritos $7.49–7.99 (Aug 2026); crinkle-cut fries $2.49; Del Combo (2 tacos + burrito + fries + drink) $7.99",
+   "src": [
+    "https://menupedia.us/del-taco-menu/",
+    "https://sixstoreys.com/?p=32110",
+    "https://www.tastingtable.com/2228955/best-new-fast-food-combo-meals-2026-del-taco/"
+   ]
+  },
+  {
+   "id": "burgerking",
+   "name": "Burger King",
+   "names": [
+    "burger king"
+   ],
+   "type": "fast_food",
+   "main": 7.49,
+   "side": 2.19,
+   "dessert": 1.49,
+   "drink": 1.81,
+   "year": 2026,
+   "note": "Whopper $7.49 (May 2026), Whopper Meal $11.49 → fries + drink $4.00 in a meal; soft-serve cone $1.49",
+   "src": [
+    "https://menupedia.us/burger-king-menu/",
+    "https://www.mashed.com/2243596/burger-king-whopper-cost-2000-vs-2026/"
+   ]
+  },
+  {
+   "id": "jackinthebox",
+   "name": "Jack in the Box",
+   "names": [
+    "jack in the box"
+   ],
+   "type": "fast_food",
+   "main": 6.14,
+   "side": 3.49,
+   "dessert": 4.49,
+   "drink": 2.01,
+   "est": [
+    "dessert"
+   ],
+   "year": 2026,
+   "note": "Jumbo Jack $4.99, Sourdough Jack $7.29; medium curly fries $3.49; Jumbo Jack combo $10.49 (→ drink ≈ $2); shakes $2.19–5.49 range",
+   "src": [
+    "https://menupedia.us/jack-in-the-box-menu/",
+    "https://sixstoreys.com/?p=32129"
+   ]
+  },
+  {
+   "id": "carlsjr",
+   "name": "Carl's Jr.",
+   "names": [
+    "carl's jr",
+    "carls jr",
+    "carl's jr.",
+    "carls junior"
+   ],
+   "type": "fast_food",
+   "main": 7.99,
+   "side": 1.99,
+   "dessert": 4.49,
+   "drink": 1.51,
+   "est": [
+    "dessert"
+   ],
+   "year": 2026,
+   "note": "Famous Star w/ Cheese $6.99, Western Bacon Cheeseburger ≈ $8.99; Famous Star combo $10.49 → medium fries + drink $3.50; no shake price found",
+   "src": [
+    "https://menupedia.us/carls-jr-menu/",
+    "https://www.thirstybear.com/carls-jr-menu-with-prices/"
+   ]
+  },
+  {
+   "id": "arbys",
+   "name": "Arby's",
+   "names": [
+    "arby's",
+    "arbys"
+   ],
+   "type": "fast_food",
+   "main": 5.49,
+   "side": 3.14,
+   "dessert": 3.99,
+   "drink": 2.39,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Classic Roast Beef $5.49 (May 2026); medium curly fries $2.69–3.59; medium Jamocha shake $3.99; combo $8.99",
+   "src": [
+    "https://menupedia.us/arbys-menu/",
+    "https://www.thirstybear.com/arbys-menu-with-prices/"
+   ]
+  },
+  {
+   "id": "subway",
+   "name": "Subway",
+   "names": [
+    "subway"
+   ],
+   "type": "fast_food",
+   "main": 7.99,
+   "side": 1.49,
+   "dessert": 0.99,
+   "drink": 2.39,
+   "est": [
+    "side",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "6-inch ≈ $5.49–6.50, footlong $8.49–10.99 (May 2026); cookie $0.99; Meal of the Day (6-inch + chips + small drink) $6.99 in Jan 2025",
+   "src": [
+    "https://menupedia.us/subway-menu/",
+    "https://www.dealnews.com/s1881/Subway/21827087.html",
+    "https://retailwire.com/subway-meal-of-the-day/"
+   ],
+   "not": [
+    "sushi",
+    "station",
+    "grill and",
+    "market"
+   ]
+  },
+  {
+   "id": "chipotle",
+   "name": "Chipotle",
+   "names": [
+    "chipotle"
+   ],
+   "type": "fast_casual",
+   "main": 10.5,
+   "side": 5.15,
+   "drink": 3.25,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Chicken burrito/bowl $9.35 (Chicago)–$11.50 (NYC), $10.50 LA pickup; chips & guac $4.50–6.25; delivery menus ≈30% higher; no desserts",
+   "src": [
+    "https://livinginguatemala.com/chipotle-menu-prices-usa/",
+    "https://www.thirstybear.com/chipotle-menu-with-prices/"
+   ]
+  },
+  {
+   "id": "pandaexpress",
+   "name": "Panda Express",
+   "names": [
+    "panda express"
+   ],
+   "type": "fast_food",
+   "main": 10.85,
+   "side": 2.25,
+   "drink": 2.89,
+   "est": [
+    "side",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Plate (1 side + 2 entrées) $10.30–11.40, bowl $8.80–9.20; side = egg roll/appetizer (estimated); no desserts",
+   "src": [
+    "https://menupedia.us/panda-express-menu/",
+    "https://sixstoreys.com/?p=31961"
+   ]
+  },
+  {
+   "id": "popeyes",
+   "name": "Popeyes",
+   "names": [
+    "popeyes"
+   ],
+   "type": "fast_food",
+   "main": 6.94,
+   "side": 2.99,
+   "dessert": 1.79,
+   "drink": 2.49,
+   "est": [
+    "side",
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Chicken sandwich $5.29–5.49; 3-pc tenders combo $8.99–10.09; regular sides $2.49–3.99",
+   "src": [
+    "https://menupedia.us/popeyes-menu/",
+    "https://sixstoreys.com/?p=31943"
+   ]
+  },
+  {
+   "id": "chickfila",
+   "name": "Chick-fil-A",
+   "names": [
+    "chick-fil-a",
+    "chick fil a",
+    "chickfila"
+   ],
+   "type": "fast_food",
+   "main": 5.53,
+   "side": 2.85,
+   "dessert": 4.55,
+   "drink": 2.05,
+   "year": 2026,
+   "note": "Chicken sandwich $5.25, spicy $5.85, 8-pc nuggets $5.49; medium waffle fries $2.85; Frosted Lemonade $4.55; 8-pc meal $10.39 (→ medium drink ≈ $2.05); closed Sundays",
+   "src": [
+    "https://menupedia.us/chick-fil-a-menu/",
+    "https://www.aol.com/articles/customers-think-fast-food-favorite-200300185.html"
+   ]
+  },
+  {
+   "id": "fiveguys",
+   "name": "Five Guys",
+   "names": [
+    "five guys"
+   ],
+   "type": "fast_casual",
+   "main": 10.99,
+   "side": 6.49,
+   "dessert": 6.59,
+   "drink": 2.99,
+   "year": 2026,
+   "note": "Cheeseburger $9.00–11.99; regular fries $6.19–8.03 (often shared); shake $5.79–6.59; regular drink $2.99 — sources disagree",
+   "src": [
+    "https://menupedia.us/five-guys-menu/",
+    "https://sixstoreys.com/?p=32189",
+    "https://mobile-cuisine.com/menu/five-guys-prices/"
+   ]
+  },
+  {
+   "id": "wingstop",
+   "name": "Wingstop",
+   "names": [
+    "wingstop"
+   ],
+   "type": "fast_casual",
+   "main": 11.49,
+   "side": 3.99,
+   "drink": 2.51,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "10 wings $11.49; regular fries $3.99; 10-pc Crew Pack (wings + fries + dip + drink) $14 — other listings up to $18.99",
+   "src": [
+    "https://menupedia.us/wingstop-menu/",
+    "https://sixstoreys.com/?p=31980"
+   ]
+  },
+  {
+   "id": "dominos",
+   "name": "Domino's",
+   "names": [
+    "domino's",
+    "dominos",
+    "domino's pizza",
+    "dominos pizza"
+   ],
+   "type": "pizza",
+   "main": 6.18,
+   "side": 2.7,
+   "dessert": 2.16,
+   "drink": 1.08,
+   "year": 2026,
+   "note": "Per person = 3 of 8 slices of a large (cheese $13.99, specialty $18.99); bread twists $6.49–9.69, cinnamon twists $6.49, 2-liter $2.99–3.49, each shared by 3",
+   "src": [
+    "https://menupedia.us/dominos-menu/",
+    "https://www.sixstoreys.com/dominos-menu-prices/"
+   ]
+  },
+  {
+   "id": "pizzahut",
+   "name": "Pizza Hut",
+   "names": [
+    "pizza hut"
+   ],
+   "type": "pizza",
+   "main": 6.0,
+   "side": 1.83,
+   "drink": 1.0,
+   "year": 2026,
+   "note": "Per person = 3 of 8 slices of a large ($15.99); personal pan $5.99; breadsticks $4–6.99 and 2-liter $3, each shared by 3",
+   "src": [
+    "https://mobile-cuisine.com/menu/pizza-hut-prices/",
+    "https://lowerbuckstimes.com/2026/07/16/pizza-hut-throwback-value-menu-personal-pan/"
+   ]
+  },
+  {
+   "id": "littlecaesars",
+   "name": "Little Caesars",
+   "names": [
+    "little caesars",
+    "little caesar's"
+   ],
+   "type": "pizza",
+   "main": 2.43,
+   "side": 1.33,
+   "drink": 1.0,
+   "year": 2026,
+   "note": "Per person = 3 of 8 slices of a large Hot-N-Ready pepperoni ($5.99–6.99); Crazy Bread $3.99 and 2-liter $2.99, each shared by 3",
+   "src": [
+    "https://menupedia.us/little-caesars-menu/",
+    "https://sixstoreys.com/?p=32107"
+   ]
+  },
+  {
+   "id": "papamurphys",
+   "name": "Papa Murphy's",
+   "names": [
+    "papa murphy's",
+    "papa murphys"
+   ],
+   "type": "pizza",
+   "main": 5.62,
+   "year": 2025,
+   "note": "Take 'n' bake. Per person = 3 of 8 slices of a large ($13.99–15.99); Papa's Picks from $9.99 (Nov 2025)",
+   "src": [
+    "https://mobile-cuisine.com/menu/papa-murphys-prices/",
+    "https://www.verdictfoodservice.com/newsletters/papa-murphys-papas-picks-pizzas"
+   ]
+  },
+  {
+   "id": "panera",
+   "name": "Panera Bread",
+   "names": [
+    "panera bread",
+    "panera"
+   ],
+   "type": "fast_casual",
+   "main": 10.49,
+   "side": 6.49,
+   "dessert": 2.99,
+   "drink": 3.49,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Whole sandwiches $8.49–12.49, salads $9.99–12.49, bowls $8.99–11.49; side = cup of soup $5.99–6.99; Mix & Match $4.99",
+   "src": [
+    "https://menupedia.us/panera-bread-menu/",
+    "https://www.thirstybear.com/panera-menu-with-prices-2026/",
+    "https://www.aol.com/articles/panera-just-launched-menu-thats-110000761.html"
+   ]
+  },
+  {
+   "id": "jerseymikes",
+   "name": "Jersey Mike's",
+   "names": [
+    "jersey mike's",
+    "jersey mikes",
+    "jersey mike's subs",
+    "jersey mikes subs"
+   ],
+   "type": "fast_casual",
+   "main": 11.49,
+   "side": 1.79,
+   "dessert": 1.15,
+   "drink": 2.79,
+   "est": [
+    "side",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Regular subs $10.99 (#13 Italian)–12.99 (Big Kahuna), Philly $11.49; cookie $1.15",
+   "src": [
+    "https://menupedia.us/jersey-mikes-menu/",
+    "https://sixstoreys.com/?p=31920"
+   ]
+  },
+  {
+   "id": "dutchbros",
+   "name": "Dutch Bros",
+   "names": [
+    "dutch bros",
+    "dutch bros coffee",
+    "dutch brothers"
+   ],
+   "type": "cafe",
+   "main": 4.38,
+   "dessert": 2.0,
+   "year": 2026,
+   "note": "Café: main = a medium drink (Annihilator $3.50–5.25, sources disagree); muffin top $2.00 (some stores ≈ $3)",
+   "src": [
+    "https://menupedia.us/dutch-bros-menu/",
+    "https://www.thirstybear.com/?p=18612",
+    "https://sixstoreys.com/dutch-bros-menu-prices/"
+   ]
+  },
+  {
+   "id": "starbucks",
+   "name": "Starbucks",
+   "names": [
+    "starbucks",
+    "starbucks coffee"
+   ],
+   "type": "cafe",
+   "main": 5.7,
+   "dessert": 3.75,
+   "est": [
+    "dessert"
+   ],
+   "year": 2026,
+   "note": "Café: main = a grande drink (latte $5.45–5.95, Iced Brown Sugar Oat Espresso $6.25); no food prices found (pastry estimated)",
+   "src": [
+    "https://menupedia.us/starbucks-menu/",
+    "https://www.chowhound.com/2177489/starbucks-drinks-five-under/"
+   ]
+  },
+  {
+   "id": "mcmenamins",
+   "name": "McMenamins",
+   "names": [
+    "mcmenamins"
+   ],
+   "type": "casual",
+   "main": 18.75,
+   "side": 5.88,
+   "dessert": 8.5,
+   "drink": 3.75,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "From the pubs' own online-ordering menus (Oregon): burger $16.75–17.75 (North Bank), cheeseburger $19.75, bacon cheeseburger $19.25–20.75; fries $11.25–12.25 shared by 2",
+   "src": [
+    "https://www.toasttab.com/mcmenamins-north-bank-pub",
+    "https://www.toasttab.com/local/order/mcmenamins-oak-hills-oak-hills",
+    "https://www.toasttab.com/local/order/mcmenamins-corvallis",
+    "https://order.online/store/-266434/"
+   ]
+  },
+  {
+   "id": "sharis",
+   "name": "Shari's Cafe & Pies",
+   "names": [
+    "shari's",
+    "sharis",
+    "shari's cafe and pies",
+    "sharis cafe and pies",
+    "shari's restaurant"
+   ],
+   "type": "casual",
+   "main": 19.0,
+   "dessert": 6.5,
+   "drink": 3.75,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Online-ordering menus (WA stores): burger $21.45, fish & chips $20.55, Belgian waffle $14.95, Farmer's Breakfast $19.05; pie sold as slices (estimated) and whole pies ($23.45)",
+   "src": [
+    "https://order.online/store/163088",
+    "https://order.online/store/-837762/"
+   ]
+  },
+  {
+   "id": "elmers",
+   "name": "Elmer's",
+   "names": [
+    "elmer's",
+    "elmers",
+    "elmer's restaurant",
+    "elmers restaurant"
+   ],
+   "type": "casual",
+   "main": 12.5,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2025,
+   "note": "Oregon stores: buttermilk pancakes $10.19 (Springfield)–$13.22 (Roseburg), specialty pancakes $10.89–14.48; listings undated",
+   "src": [
+    "https://www.allmenus.com/or/springfield/224268-elmers-restaurant/menu/",
+    "https://www.allmenus.com/or/roseburg/224266-elmers-restaurant/menu/"
+   ]
+  },
+  {
+   "id": "dennys",
+   "name": "Denny's",
+   "names": [
+    "denny's",
+    "dennys"
+   ],
+   "type": "casual",
+   "main": 12.39,
+   "dessert": 5.99,
+   "drink": 3.29,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Original Grand Slam $11.99–12.79, Build Your Own $9.99–11.99",
+   "src": [
+    "https://menupedia.us/dennys-menu/",
+    "https://sixstoreys.com/dennys-menu-prices/"
+   ]
+  },
+  {
+   "id": "ihop",
+   "name": "IHOP",
+   "names": [
+    "ihop",
+    "international house of pancakes"
+   ],
+   "type": "casual",
+   "main": 13.49,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "2x2x2 $10.99, specialty pancakes $12.99, Rooty Tooty Fresh 'N Fruity $13.99, World Famous Pancake Combo $15.99",
+   "src": [
+    "https://menupedia.us/ihop-menu/",
+    "https://sixstoreys.com/ihop-menu-prices/"
+   ]
+  },
+  {
+   "id": "applebees",
+   "name": "Applebee's",
+   "names": [
+    "applebee's",
+    "applebees",
+    "applebee's grill and bar",
+    "applebees grill and bar"
+   ],
+   "type": "casual",
+   "main": 17.49,
+   "side": 6.85,
+   "dessert": 7.49,
+   "drink": 2.99,
+   "est": [
+    "dessert"
+   ],
+   "year": 2026,
+   "note": "Entrées $11.99–22.99 (Riblets $14.99, Bourbon St $17.99, sirloin $18.99–21.99); side = appetizer ($12.49–15.89) shared by 2; soft drink $2.99 w/ refills",
+   "src": [
+    "https://menupedia.us/applebees-menu/",
+    "https://www.thepricer.org/applebees-menu-prices/",
+    "https://sixstoreys.com/?p=31782"
+   ]
+  },
+  {
+   "id": "redrobin",
+   "name": "Red Robin",
+   "names": [
+    "red robin",
+    "red robin gourmet burgers",
+    "red robin gourmet burgers and brews"
+   ],
+   "type": "casual",
+   "main": 15.49,
+   "side": 5.3,
+   "dessert": 7.49,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Gourmet burgers $13.99–18.99 incl. bottomless steak fries; side = appetizer ($8.79–13.29) shared by 2; Mile-High shake $7.49; value menu from $9.99 (Jan 2026)",
+   "src": [
+    "https://menupedia.us/red-robin-menu/",
+    "https://sixstoreys.com/?p=32096",
+    "https://ir.redrobin.com/news-events/press-releases/detail/721/red-robin-introduces-new-big-yummm-deals-value-menu"
+   ]
+  },
+  {
+   "id": "olivegarden",
+   "name": "Olive Garden",
+   "names": [
+    "olive garden",
+    "olive garden italian restaurant"
+   ],
+   "type": "casual",
+   "main": 18.49,
+   "side": 4.17,
+   "dessert": 7.24,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Entrées ≈ $16–23 (Chicken Alfredo $20.49) incl. soup/salad & breadsticks; side = appetizer ($7.69–8.99) shared by 2; desserts $6.99–7.49",
+   "src": [
+    "https://menupedia.us/olive-garden-menu/",
+    "https://www.thirstybear.com/olive-garden-menu-with-prices/",
+    "https://mezzalunafinecatering.com/?p=496"
+   ]
+  },
+  {
+   "id": "bww",
+   "name": "Buffalo Wild Wings",
+   "names": [
+    "buffalo wild wings",
+    "bdubs",
+    "b-dubs"
+   ],
+   "type": "casual",
+   "main": 15.49,
+   "side": 4.75,
+   "dessert": 6.99,
+   "drink": 3.49,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "10 boneless $13.99, 10 traditional $16.99, Buffalo Blue Burger $15.49; side = mozzarella sticks $9.49 shared by 2",
+   "src": [
+    "https://menupedia.us/buffalo-wild-wings-menu/"
+   ]
+  },
+  {
+   "id": "blackbear",
+   "name": "Black Bear Diner",
+   "names": [
+    "black bear diner"
+   ],
+   "type": "casual",
+   "main": 18.16,
+   "dessert": 6.99,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Bigfoot Chicken Fried Steak $18.99, Bear-Sized Breakfast $16.99, pot roast $18.49; pie slice $6.99",
+   "src": [
+    "https://menupedia.us/black-bear-diner-menu/"
+   ]
+  },
+  {
+   "id": "texasroadhouse",
+   "name": "Texas Roadhouse",
+   "names": [
+    "texas roadhouse"
+   ],
+   "type": "casual",
+   "main": 17.49,
+   "side": 4.25,
+   "dessert": 6.99,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "6 oz sirloin $13.49–15.99, 11 oz $19.99–22.99 (with 2 sides); side = Cactus Blossom $8.49 shared by 2; desserts $6.99",
+   "src": [
+    "https://menupedia.us/texas-roadhouse-menu/",
+    "https://sixstoreys.com/texas-roadhouse-menu-prices/",
+    "https://www.thetakeout.com/2257034/best-texas-roadhouse-entrees-we-found-under-20/"
+   ]
+  },
+  {
+   "id": "outback",
+   "name": "Outback Steakhouse",
+   "names": [
+    "outback steakhouse",
+    "outback"
+   ],
+   "type": "casual",
+   "main": 20.99,
+   "side": 6.0,
+   "dessert": 10.39,
+   "drink": 3.49,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Center-cut sirloin $17.49–19.79, entrées mostly $15–30; side = Bloomin' Onion ($9.99–11.99) shared by 2; desserts $9.79–10.99",
+   "src": [
+    "https://menupedia.us/outback-steakhouse-menu/",
+    "https://sixstoreys.com/?p=31953"
+   ]
+  },
+  {
+   "id": "jimmyjohns",
+   "name": "Jimmy John's",
+   "names": [
+    "jimmy john's",
+    "jimmy johns"
+   ],
+   "type": "fast_food",
+   "main": 8.99,
+   "side": 2.29,
+   "dessert": 2.49,
+   "drink": 2.99,
+   "year": 2026,
+   "note": "8-inch originals $7.49–9.00 (#1 Pepe, #2 Big John $8.99); chips $2.29; cookie $2.49; regular fountain drink $2.99 (one store, Aug 2026)",
+   "src": [
+    "https://www.thirstybear.com/jimmy-johns-menu-with-prices/",
+    "https://menupedia.us/jimmy-johns-menu/"
+   ]
+  },
+  {
+   "id": "dairyqueen",
+   "name": "Dairy Queen",
+   "names": [
+    "dairy queen",
+    "dq",
+    "dq grill and chill",
+    "dairy queen grill and chill"
+   ],
+   "type": "fast_food",
+   "main": 7.39,
+   "side": 2.99,
+   "dessert": 5.79,
+   "drink": 2.69,
+   "est": [
+    "side",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "1/4 lb Cheese GrillBurger $5.49, 4-pc chicken strip basket $8.99–9.69; medium Blizzard $5.19–6.99",
+   "src": [
+    "https://menupedia.us/dairy-queen-menu/",
+    "https://sixstoreys.com/?p=31903"
+   ]
+  },
+  {
+   "id": "sonic",
+   "name": "Sonic",
+   "names": [
+    "sonic",
+    "sonic drive-in",
+    "sonic drive in"
+   ],
+   "type": "fast_food",
+   "main": 5.99,
+   "side": 2.64,
+   "dessert": 4.99,
+   "drink": 2.99,
+   "year": 2026,
+   "note": "SuperSONIC Bacon Double Cheeseburger $6.99; medium tots $2.49–2.79; medium Cherry Limeade $2.99; medium Master Shake $4.99; $7 Big Deal Meal (June 2026)",
+   "src": [
+    "https://menupedia.us/sonic-menu/",
+    "https://www.thirstybear.com/sonic-menu-with-prices/",
+    "https://www.qsrmagazine.com/news/sonic-unveils-new-7-big-deal-meal/"
+   ]
+  },
+  {
+   "id": "kfc",
+   "name": "KFC",
+   "names": [
+    "kfc",
+    "kentucky fried chicken"
+   ],
+   "type": "fast_food",
+   "main": 5.99,
+   "side": 2.99,
+   "dessert": 2.49,
+   "drink": 2.49,
+   "est": [
+    "side",
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Chicken sandwich $5.49, Taste of KFC 2-pc $5.00, 3-pc tenders combo $8.49 (May 2026 national average)",
+   "src": [
+    "https://menupedia.us/kfc-menu/",
+    "https://nerdbot.com/2026/02/03/kfc-menu-2026-usa-deals-combos-family-meals/"
+   ]
+  },
+  {
+   "id": "qdoba",
+   "name": "Qdoba",
+   "names": [
+    "qdoba",
+    "qdoba mexican eats",
+    "qdoba mexican grill"
+   ],
+   "type": "fast_casual",
+   "main": 12.49,
+   "side": 5.05,
+   "drink": 3.19,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Chicken bowl $10.99, steak burrito $12.49, create-your-own $13.25–15.25 (queso & guac included); chips & queso $5.05",
+   "src": [
+    "https://menupedia.us/qdoba-menu/",
+    "https://sixstoreys.com/?p=31937"
+   ]
+  },
+  {
+   "id": "modpizza",
+   "name": "MOD Pizza",
+   "names": [
+    "mod pizza"
+   ],
+   "type": "fast_casual",
+   "main": 10.59,
+   "side": 3.99,
+   "dessert": 2.99,
+   "drink": 3.19,
+   "year": 2025,
+   "note": "11-inch MOD: Maddy $8.59, one topping $10.59, unlimited $11.59; garlic strips $3.99; No Name Cake $2.99; 16 oz drink $3.19 (listings undated)",
+   "src": [
+    "https://fastfoodsmenu.com/mod-pizza-menu-prices-usa/",
+    "https://restaurantbusinessonline.com/food/mod-pizza-rolls-out-new-tiered-pricing-options"
+   ]
+  },
+  {
+   "id": "chilis",
+   "name": "Chili's",
+   "names": [
+    "chili's",
+    "chilis",
+    "chili's grill and bar",
+    "chilis grill and bar"
+   ],
+   "type": "casual",
+   "main": 16.99,
+   "side": 5.5,
+   "dessert": 7.99,
+   "drink": 3.29,
+   "est": [
+    "dessert",
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Chicken fajitas $16.99; 3 for Me (starter + entrée + drink) $10.99/14.99/16.99; side = appetizer ($10–12.59) shared by 2",
+   "src": [
+    "https://menupedia.us/chilis-menu/",
+    "https://www.thepricer.org/chilis-menu-prices/",
+    "https://www.thetakeout.com/2127479/changes-likely-coming-chilis-2026/"
+   ]
+  },
+  {
+   "id": "killerburger",
+   "name": "Killer Burger",
+   "names": [
+    "killer burger"
+   ],
+   "type": "fast_casual",
+   "main": 14.7,
+   "drink": 2.99,
+   "est": [
+    "drink"
+   ],
+   "year": 2025,
+   "note": "Burgers come with fries; Motley Que $9.95 / 11.05 / 14.70 by size (Idaho); Killer Box Lunch (pint burger + small fries + drink) $11 — date unclear",
+   "src": [
+    "https://www.aol.com/news/boise-area-portland-based-burger-182812124.html"
+   ]
+  },
+  {
+   "id": "muchasgracias",
+   "name": "Muchas Gracias",
+   "names": [
+    "muchas gracias",
+    "muchas gracias mexican food"
+   ],
+   "type": "fast_food",
+   "main": 13.99,
+   "drink": 2.99,
+   "est": [
+    "drink"
+   ],
+   "year": 2026,
+   "note": "Oregon online-ordering menus: Oregon burrito $12.99 (Grants Pass)–14.99 (Medford), carne asada burrito $13.64, combination plates $16.99; older Portland/Hillsboro listings are much lower",
+   "src": [
+    "https://order.online/store/muchas-gracias-grants-pass-622279",
+    "https://www.allmenus.com/or/medford/742551-muchas-gracias-mexican-food/menu/"
+   ]
+  }
+ ],
+ "places": []
+}

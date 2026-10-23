@@ -172,7 +172,7 @@ public class MainActivity extends Activity {
             if (!ours(u) || p == null) return null;
             p = "/" + p.substring(BASE.length());
             if (p.equals("/")) p = "/index.html";
-            String mime = p.endsWith(".html") ? "text/html" : p.endsWith(".js") ? "text/javascript" : p.endsWith(".png") ? "image/png" : "application/octet-stream";
+            String mime = p.endsWith(".html") ? "text/html" : p.endsWith(".json") ? "application/json" : p.endsWith(".js") ? "text/javascript" : p.endsWith(".png") ? "image/png" : "application/octet-stream";
             try {
                 InputStream in = getAssets().open("www" + p);
                 return new WebResourceResponse(mime, "utf-8", in);

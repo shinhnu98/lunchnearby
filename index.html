@@ -180,6 +180,14 @@ code{background:var(--soft);border-radius:6px;padding:1px 5px;font-size:13px;wor
 .bars{display:flex;align-items:flex-end;gap:8px;height:150px;padding-top:6px}.bar{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
 .bar i{display:block;width:100%;min-height:3px;background:var(--ac);border-radius:6px 6px 2px 2px}.bv{font-size:12px;font-weight:700}.bd{font-size:11px;color:var(--mut)}
 .adm{border-color:var(--ac)}
+/* price range: one bar, two handles */
+.dr{position:relative;height:36px;margin:2px 0}
+.dr .trk,.dr .sel{position:absolute;top:16px;height:4px;border-radius:2px}.dr .trk{left:0;right:0;background:var(--ln)}.dr .sel{background:var(--ac)}
+.dr input[type=range]{position:absolute;left:0;top:0;width:100%;height:36px;margin:0;pointer-events:none;-webkit-appearance:none;appearance:none;background:none}
+.dr input::-webkit-slider-runnable-track{height:36px;background:none}.dr input::-moz-range-track{background:none}
+.dr input::-webkit-slider-thumb{pointer-events:auto;-webkit-appearance:none;width:26px;height:26px;margin-top:5px;border-radius:50%;background:var(--ac);border:3px solid var(--card);box-shadow:0 1px 5px #0005;cursor:grab}
+.dr input::-moz-range-thumb{pointer-events:auto;width:20px;height:20px;border-radius:50%;background:var(--ac);border:3px solid var(--card);box-shadow:0 1px 5px #0005;cursor:grab}
+.pmm{display:flex;justify-content:space-between;font-size:13px;color:var(--mut)}.pmm b{color:var(--fg)}
 /* onboarding */
 .obs{font-size:13px;font-weight:800;letter-spacing:.08em;opacity:.85;margin-bottom:6px}
 .obt{font-size:28px;font-weight:900;margin:0 0 6px;letter-spacing:-.02em;text-shadow:0 4px 18px #0003}
@@ -242,7 +250,7 @@ const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const APP=window.AndroidApp||null;   /* set when running inside the Android app */
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const NL=navigator.language||'';
-const defS=()=>({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,notify:true,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,maxP:4});
+const defS=()=>({lang:NL.startsWith('ko')?'ko':'en',unit:/^en-US/i.test(NL)?'mi':'km',radius:1609,open:false,notify:true,inc:[],exc:[],tab:'pick',place:null,recent:[],key:'',minR:0,minN:0,pmin:0,pmax:100,punk:false});
 let MAPKEY=ld('lr_mk',''),ns='',user=null,FB=null,authReady=false,guest=!!ld('lr_guest',0),S,H,F,B;
 const K=k=>ns+k;
 function loadLocal(){S=Object.assign(defS(),ld(K('lr_s'),{}));delete S.ff;if(!['pick','hist'].includes(S.tab))S.tab='pick';H=ld(K('lr_h'),[]);F=ld(K('lr_f'),{});B=ld(K('lr_b'),{})}
@@ -497,7 +505,7 @@ async function go(){
     const seen={};let list=raw.filter(p=>{p.d=dist(c.latitude,c.longitude,p.la,p.lo);if(!p.g){const o=oh(p.hrs);p.open=o.open;p.today=o.today}
       if(seen[p.name]||B[p.id]||p.d>S.radius*1.03)return false;seen[p.name]=1;
       const cs=p.cus||[p.cu];if(S.inc.length&&!cs.some(c=>S.inc.includes(c)))return false;if(cs.some(c=>S.exc.includes(c)))return false;
-      if(S.open&&p.open===false)return false;return true});
+      if(S.open&&p.open===false)return false;if(priceOK(p)===false)return false;return true});
     if(!list.length){msg(L('반경 안에 조건에 맞는 음식점이 없어요. 반경을 넓히거나 필터를 줄여보세요.','No matches in range. Widen the radius or relax the filters.'));return}
     const cx=ctx(),now=Date.now();
     /* pure random within the radius; only small nudges for favorites / recently visited */
@@ -508,12 +516,12 @@ async function go(){
       return{p,why,s:Math.max(.05,s)}});
     const draw=()=>{let r=Math.random()*sc.reduce((a,b)=>a+b.s,0);for(const x of sc){r-=x.s;if(r<=0)return x}return sc[sc.length-1]};
     let pick=null,skipped=0;
-    for(let tries=0,max=(S.minR||S.minN||S.open||S.maxP<4)?10:3;tries<max&&sc.length;tries++){const x=draw();
+    for(let tries=0,max=(S.minR||S.minN||S.open||pfOn())?10:3;tries<max&&sc.length;tries++){const x=draw();
       if(x.p.g&&x.p.lite){msg(L('가게 정보 확인 중…','Checking place details…'));
         try{x.p=await gDetails(x.p)}catch(e){if(!gErr)gErr=e.message}}
-      if((S.open&&x.p.open===false)||(x.p.g&&S.minR&&!(x.p.rt>=S.minR))||(x.p.g&&S.maxP<4&&PL[x.p.pr]>S.maxP)||(x.p.g&&S.minN&&!((x.p.n||0)>=S.minN))){sc=sc.filter(y=>y!==x);skipped++;continue}
+      if((S.open&&x.p.open===false)||(x.p.g&&S.minR&&!(x.p.rt>=S.minR))||!priceOK(x.p,true)||(x.p.g&&S.minN&&!((x.p.n||0)>=S.minN))){sc=sc.filter(y=>y!==x);skipped++;continue}
       pick=x;break}
-    if(!pick){msg(L('조건(별점·영업 중)에 맞는 곳을 찾지 못했어요. 다시 뽑거나 조건을 줄여보세요.','Could not find a place matching rating/open filters. Spin again or relax them.'));return}
+    if(!pick){msg(L('조건(별점·영업 중·가격)에 맞는 곳을 찾지 못했어요. 다시 뽑거나 조건을 줄여보세요.','Could not find a place matching rating/open/price filters. Spin again or relax them.'));return}
     cx.forEach(x=>{if(x.re&&x.re.test(pick.p.tx))pick.why.push(L(...x.k))});
     pick.total=list.length;pick.more=!!(pick.p.g&&gpool&&gpool.calls<14);
     msg('');rvMore=false;wkMore=false;await spin(list,pick.p);last=pick;
@@ -526,6 +534,52 @@ async function go(){
 async function spin(list,p){const el=$('#slot');let d=50;el.classList.remove('done');el.classList.add('flick');
   for(let i=0;i<18;i++){el.textContent=list[Math.floor(Math.random()*list.length)].name;await sleep(d);d*=1.13}
   el.classList.remove('flick');el.textContent=p.name;void el.offsetWidth;el.classList.add('done')}
+
+/* ---------- per-person price ----------
+   1) researched menus (prices.json): typical main / side / dessert / drink → average of the usual ways people order
+   2) otherwise Google's "price per person" (what diners report spending)
+   The data file is fetched fresh from GitHub, so new research reaches the app without a new release. */
+const PMAX=100,PSTEP=5,PRICES_URL='https://raw.githubusercontent.com/shinhnu98/lunchnearby/main/prices.json';
+let PD=ld('lr_pd',null);
+const pnorm=x=>String(x||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[’'`.]/g,'').replace(/&/g,' and ').replace(/[^a-z0-9가-힣]+/g,' ').trim();
+function idxPrices(){if(!PD)return;(PD.chains||[]).forEach(c=>c._a=(c.names||[c.name]).map(pnorm));(PD.places||[]).forEach(c=>c._a=pnorm(c.name))}
+idxPrices();
+async function loadPrices(){
+  for(const u of [PRICES_URL,'prices.json']){
+    try{const r=await tFetch(u,{cache:'no-store'},8000,new AbortController());if(!r.ok)continue;const j=await r.json();if(!j||!j.chains)continue;
+      if(!PD||String(j.updated||'')>=String(PD.updated||'')){PD=j;sv('lr_pd',j);idxPrices();if(last)showRes()}return}catch{}}}
+/* the usual orders: main only · main+side · main+drink · main+side+drink · main+side+dessert+drink */
+function basket(e){const m=e.main,s=e.side||0,d=e.dessert||0,k=e.drink||0,o=[m,m+s,m+k,m+s+k,m+s+d+k];
+  return{avg:o.reduce((a,b)=>a+b)/o.length,lo:m,hi:m+s+d+k}}
+function menuEntry(p){if(!PD||!p||!p.name)return null;const n=' '+pnorm(p.name)+' ';
+  const loc=(PD.places||[]).find(e=>e.la!=null&&p.la!=null&&dist(p.la,p.lo,e.la,e.lo)<200&&(n.includes(' '+e._a+' ')||e._a.includes(n.trim())));
+  if(loc)return loc;
+  /* chains: the name has to start with the brand ("Taco Bell Cantina" yes, "Subway Sushi Bar" no via its exclusions) */
+  const t=n.trim().replace(/^the /,'');
+  return(PD.chains||[]).find(c=>c._a.some(a=>a&&(t+' ').startsWith(a+' '))&&!(c.not||[]).some(w=>t.includes(w)))||null}
+function priceOf(p){const e=menuEntry(p);
+  if(e&&e.main)return{...basket(e),src:'menu',e};
+  const g=p.prg;if(g&&g.startPrice){const a=+g.startPrice.units||0,b=g.endPrice?+g.endPrice.units||0:0;
+    return{avg:b?(a+b)/2:a*1.25,lo:a,hi:b||null,src:'google',cur:g.startPrice.currencyCode}}
+  return null}
+const pfOn=()=>S.pmin>0||S.pmax<PMAX;
+const inPrice=pp=>pp.avg>=S.pmin&&(S.pmax>=PMAX||pp.avg<=S.pmax);
+/* null = can't tell yet (Google place not loaded in detail) */
+function priceOK(p,final){if(!pfOn())return true;const pp=priceOf(p);if(pp)return inPrice(pp);return final||!p.g?S.punk:null}
+const usd=v=>'$'+(v>=20||Number.isInteger(v)?Math.round(v):v.toFixed(2));
+function priceHTML(p){const pp=priceOf(p);if(!pp)return'';
+  if(pp.src=='menu'){const e=pp.e,est=e.est||[],parts=[['main',L('메인','Main')],['side',L('사이드','Side')],['dessert',L('디저트','Dessert')],['drink',L('음료','Drink')]].filter(x=>e[x[0]]).map(x=>`${x[1]} ${usd(e[x[0]])}${est.includes(x[0])?'*':''}`).join(' · ')+(est.length?L(' (*추정)',' (*estimated)'):'');
+    const refs=(e.src||[]).map((u,i)=>`<a href="${esc(u)}" target="_blank" rel="noopener">${i+1}</a>`).join(' ');
+    return`<div><span class="k">${L('1인 예상 가격','Typical spend per person')}</span><span class="v">${usd(pp.avg)} <span class="mut" style="font-weight:400">(${L('메인만','main only')} ${usd(pp.lo)} ~ ${L('풀코스','full meal')} ${usd(pp.hi)})</span></span>
+      <span class="k">${esc(parts)}</span><span class="k">${L(`${e.year}년 메뉴 가격 기준`,`Based on ${e.year} menu prices`)}${PD.chains.includes(e)?L(' · 체인 공통 메뉴',' · chain-wide menu'):''}${refs?' · '+L('출처 ','sources ')+refs:''} · ${L('세금·팁 제외','before tax & tip')}</span></div>`}
+  return`<div><span class="k">${L('1인 예상 가격','Typical spend per person')}</span><span class="v">${usd(pp.lo)}${pp.hi?'–'+usd(pp.hi):'+'}</span>
+    <span class="k">${L(`Google 이용자들이 알려준 1인 가격 · ${new Date().getFullYear()}년 ${new Date().getMonth()+1}월 조회`,`Price per person reported by Google users · checked ${new Date().toLocaleDateString(loc_(),{year:'numeric',month:'short'})}`)}</span></div>`}
+const pRange=()=>!pfOn()?L('가격 상관없음','Any price'):S.pmax>=PMAX?L(`${usd(S.pmin)} 이상`,`${usd(S.pmin)} and up`):`${usd(S.pmin)} – ${usd(S.pmax)}`;
+function prIn(which,v){v=+v;if(which=='min')S.pmin=Math.min(v,S.pmax-PSTEP);else S.pmax=Math.max(v,S.pmin+PSTEP);
+  const a=$('#pmin'),b=$('#pmax');if(a)a.value=S.pmin;if(b)b.value=S.pmax;prPaint()}
+function prPaint(){const l=$('#plab'),sel=$('#psel'),mn=$('#pmn'),mx=$('#pmx');if(l)l.textContent=pRange();
+  if(sel){sel.style.left=S.pmin/PMAX*100+'%';sel.style.right=(100-S.pmax/PMAX*100)+'%'}
+  if(mn)mn.textContent=usd(S.pmin);if(mx)mx.textContent=S.pmax>=PMAX?usd(PMAX)+'+':usd(S.pmax)}
 
 /* ---------- result ---------- */
 const PL={PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
@@ -562,6 +616,7 @@ function showRes(){if(!last)return;const{p,why}=last,l=links(p),mr=myR(p.id),vc=
     <div><span class="k">${L('지금','Right now')}</span><span class="v ${st.c}">${esc(st.t)}</span></div>
     <div><span class="k">${L('오늘 영업시간','Today’s hours')}</span><span class="v">${esc(p.today||L('정보 없음','Not available'))}</span>
       ${p.wk||p.hrs?`<br><button class="link" onclick="wkMore=!wkMore;showRes()">${wkMore?L('접기','Hide'):L('요일별 영업시간 보기','See weekly hours')}</button>${wkMore?weekHTML(p):''}`:''}</div>
+    ${priceHTML(p)}
     ${hv?`<div><span class="k">${L('방문','Visit')}</span><span class="v ${hv.arr?'ok':''}">${hv.cf?L('방문하셨는지 확인해 주세요','Please confirm this visit'):hv.dep?L(`방문 완료 · ${stayMin(hv)}분 머묾`,`Visited · stayed ${stayMin(hv)} min`):hv.arr?L(`지금 이 가게에 있어요 · ${hhmm(hv.arr)} 도착`,`You’re here · arrived ${hhmm(hv.arr)}`):L('도착하면 자동으로 방문으로 기록돼요','Your visit is logged automatically when you arrive')}</span></div>`:''}
     ${cr?`<div><span class="k">${L('혼잡도','How busy')}</span><span class="v">${CL()[cr.lv]}</span><span class="k">${esc(cr.src)}${p.uri?` · <a href="${esc(p.uri)}" target="_blank" rel="noopener">${L('실시간은 Google 지도에서','Live data on Google Maps')}</a>`:''}</span></div>`:''}
   </div>
@@ -876,17 +931,18 @@ const chipCls=c=>S.inc.includes(c)?'i':S.exc.includes(c)?'x':'';
 function keepScroll(f){const sh=document.querySelector('.sheet'),y=sh?sh.scrollTop:0;f();const n=document.querySelector('.sheet');if(n){n.scrollTop=y;n.style.animation='none'}}
 function chip(c){const i=S.inc.indexOf(c),x=S.exc.indexOf(c);if(i>=0){S.inc.splice(i,1);S.exc.push(c)}else if(x>=0)S.exc.splice(x,1);else S.inc.push(c);save();keepScroll(render)}
 const pill=(on,fn,t)=>`<button class="pill ${on?'on':''}" onclick="keepScroll(()=>{${fn}})">${t}</button>`;
-const pLab=v=>v>=4?L('가격 상관없음','Any price'):'$'.repeat(v)+' '+L(['저렴한 곳','보통 이하','비싼 곳까지'][v-1],['inexpensive','moderate or less','up to expensive'][v-1]);
-const fCount=()=>(S.minR?1:0)+(S.minN?1:0)+(S.open?1:0)+(S.maxP<4?1:0)+S.inc.length+S.exc.length;
+const fCount=()=>(S.minR?1:0)+(S.minN?1:0)+(S.open?1:0)+(pfOn()?1:0)+S.inc.length+S.exc.length;
 const FUNNEL='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h18l-7 8.5V19l-4 2v-8.5z"/></svg>';
 const sheetH=()=>`<div class="ov" onclick="sheet=false;save();render()"></div><div class="sheet"><div class="grab"></div><h3>${L('필터','Filters')}</h3>
 <div class="lb">${L('검색 반경','Search radius')}</div><div class="rv-now" id="rlab">${fd(S.radius)}</div>
 <input type="range" min="0" max="100" step="1" value="${r2v(S.radius)}" oninput="rIn(this.value)" onchange="save()" aria-label="${L('검색 반경','Search radius')}">
 <div class="rr"><span>${fd(RMIN)}</span><span>${S.unit=='mi'?'20 mi':'32 km'}</span></div>
-<div class="lb">${L('가격대','Price')}</div><div class="rv-now" id="plab">${pLab(S.maxP)}</div>
-<input type="range" min="1" max="4" step="1" value="${S.maxP}" oninput="S.maxP=+this.value;$('#plab').textContent=pLab(S.maxP)" onchange="save()" aria-label="${L('가격대','Price')}">
-<div class="rr"><span>$</span><span>$$</span><span>$$$</span><span>${L('전체','Any')}</span></div>
-${MAPKEY?'':`<div class="mut" style="font-size:12px">${L('가격 필터는 Google API를 연결해야 적용돼요.','The price filter needs a Google API key.')}</div>`}
+<div class="lb">${L('1인 가격 (세금·팁 제외)','Price per person (before tax & tip)')}</div><div class="rv-now" id="plab">${pRange()}</div>
+<div class="dr"><div class="trk"></div><div class="sel" id="psel"></div>
+  <input type="range" id="pmin" min="0" max="${PMAX}" step="${PSTEP}" value="${S.pmin}" oninput="prIn('min',this.value)" onchange="save();keepScroll(render)" aria-label="${L('최소 가격','Minimum price')}">
+  <input type="range" id="pmax" min="0" max="${PMAX}" step="${PSTEP}" value="${S.pmax}" oninput="prIn('max',this.value)" onchange="save();keepScroll(render)" aria-label="${L('최대 가격','Maximum price')}"></div>
+<div class="pmm"><span>${L('최소','Min')} <b id="pmn"></b></span><span>${L('최대','Max')} <b id="pmx"></b></span></div>
+${pfOn()?`<div class="pills" style="margin-top:8px">${pill(S.punk,'S.punk=!S.punk;save();render()',L('가격 정보 없는 곳도 포함','Include places with no price info'))}</div>`:''}
 ${MAPKEY?`<div class="lb">${L('최소 Google 별점','Minimum Google rating')}</div><div class="pills">${[0,3.5,4,4.3,4.5].map(r=>pill(r==S.minR,`S.minR=${r};save();render()`,r?'★ '+r+'+':L('전체','Any'))).join('')}</div>`:''}
 <div class="lb">${L('최소 리뷰 수','Minimum number of reviews')}</div><div class="pills">${[0,50,100,300,500,1000].map(n=>pill(n==S.minN,`S.minN=${n};save();render()`,n?n.toLocaleString()+L('개 이상','+'):L('전체','Any'))).join('')}</div>
 ${MAPKEY?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필터는 Google API를 연결해야 적용돼요.','Rating and review-count filters need a Google API key.')}</div>`}
@@ -894,7 +950,7 @@ ${MAPKEY?'':`<div class="mut" style="font-size:12px">${L('별점·리뷰 수 필
 <div class="lb">${L('음식 종류 (한 번 탭 = 포함, 두 번 = 제외)','Cuisine (tap once = include, twice = exclude)')}</div>${CG.map(g=>`<div class="cg">${L(g[1],g[2])}</div><div class="pills">${CU.filter(c=>c[4]==g[0]).map(c=>`<button class="pill ${chipCls(c[0])}" onclick="chip('${c[0]}')">${c[3]} ${L(c[1],c[2])}</button>`).join('')}</div>`).join('')}
 ${S.inc.length||S.exc.length?`<button class="link" onclick="S.inc=[];S.exc=[];save();render()">${L('음식 종류 선택 초기화','Clear cuisine choices')}</button>`:''}
 <div class="fbar"><button class="reset" onclick="resetF()">${L('초기화','Reset')}</button><button class="primary" onclick="sheet=false;save();render()">${L('적용','Apply')}</button></div></div>`;
-function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,maxP:4,inc:[],exc:[]});save();keepScroll(render)}
+function resetF(){Object.assign(S,{radius:1609,minR:0,minN:0,open:false,pmin:0,pmax:PMAX,punk:false,inc:[],exc:[]});save();keepScroll(render)}
 function render(){syncRv();vWatch();
   if(view=='home'){$('#app').innerHTML=homeHTML();document.documentElement.lang=S.lang;startReel();return}
   if(view=='nick'||view=='prefs'){stopReel();$('#app').innerHTML=obHTML();document.documentElement.lang=S.lang;return}
@@ -910,7 +966,7 @@ function render(){syncRv();vWatch();
   const fab=!inSet&&S.tab=='pick'&&!sheet&&!locSheet?`<button class="ffab ${fabHide?'hide':''}" onclick="sheet=true;render()">${FUNNEL}${L('필터','Filters')}${fCount()?`<span class="n">${fCount()}</span>`:''}</button>`:'';
   $('#app').innerHTML=`<header><h1 ${inSet?'':`class="hlink" onclick="view='home';render()"`}>${view=='admin'?L('관리자 대시보드','Admin dashboard'):inSet?L('설정','Settings'):L('점심 룰렛','Lunch Roulette')}</h1>${inSet?`<button class="tb" onclick="view=view=='admin'?'set':'main';render()">${L('완료','Done')}</button>`:`<button class="ib" onclick="view='set';render()" aria-label="${L('설정','Settings')}">${GEAR}</button>`}</header><main>${body}</main>
   ${fab}${inSet?'':`<nav>${[['pick',L('뽑기','Pick')],['hist',L('기록','History')]].map(t=>`<button class="${S.tab==t[0]?'on':''}" onclick="S.tab='${t[0]}';save();render()">${t[1]}</button>`).join('')}</nav>`}${inSet?'':vAskH()}`;
-  document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes();hydrate()}
+  document.documentElement.lang=S.lang;bindGestures();if(!inSet&&S.tab=='pick')showRes();if(sheet)prPaint();hydrate()}
 /* ---------- accounts ---------- */
 async function migrateGuest(){const gS=ld('lr_s',null),gH=ld('lr_h',[]),gF=ld('lr_f',{}),gB=ld('lr_b',{});
   if(gS)S=Object.assign(defS(),gS);H=gH;F=gF;B=gB;save();await pushCloud();
@@ -924,6 +980,7 @@ function onAuth(u){if(u){user={uid:u.uid,name:u.displayName||u.email,email:u.ema
 async function loadConfig(){if(!FB)return;try{const c=await FB.getConfig();const k=c.mapsKey||'';if(k!==MAPKEY){MAPKEY=k;sv('lr_mk',k);gpool=null;render()}}catch(e){console.error(e)}}
 function initFB(){FB=window.__fb||null;if(!MAPKEY&&window.MAPS_KEY)MAPKEY=window.MAPS_KEY;
   if(FB){loadConfig();FB.onUser(u=>{onAuth(u);logVisit();if(u)FB.touchUser(u.uid,{email:u.email||'',name:u.displayName||'',photo:u.photoURL||''},0).catch(()=>{})})}else{authReady=true;render()}}
+loadPrices();
 if('__fb' in window)initFB();else window.addEventListener('fbready',initFB,{once:true});
 let loginMsg='';
 async function doLogin(){

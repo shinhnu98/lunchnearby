@@ -12,11 +12,11 @@ set -euo pipefail
 cd "$(dirname "$0")"
 : "${TOOLS:?set TOOLS to the folder with aapt2, android-all.jar, dx.jar, apksig.jar}"
 KEYSTORE=${KEYSTORE:-lunch.p12} KEYPASS=${KEYPASS:-lunchroulette}
-VERSION_CODE=${VERSION_CODE:-6} VERSION_NAME=${VERSION_NAME:-1.5}
+VERSION_CODE=${VERSION_CODE:-7} VERSION_NAME=${VERSION_NAME:-1.6}
 OUT=${OUT:-build/LunchRoulette.apk}
 B=build; rm -rf $B; mkdir -p $B/assets/www $B/classes $B/signer
 
-cp ../index.html $B/assets/www/
+cp ../index.html ../prices.json $B/assets/www/
 # app sign-in client (Desktop OAuth client) goes only into the APK, never into the repo
 if [ -n "${GOOGLE_APP_CLIENT_ID:-}" ]; then
   python3 - $B/assets/www/index.html <<'PY'
